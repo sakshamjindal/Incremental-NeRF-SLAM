@@ -10,6 +10,7 @@ jupyter
 imageio==2.9.0
 imageio-ffmpeg==0.4.2
 torch_optimizer
+easy_dict
 
 # for mesh
 PyMCubes==0.1.2
