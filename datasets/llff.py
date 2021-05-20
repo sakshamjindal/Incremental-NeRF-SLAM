@@ -159,17 +159,32 @@ def create_spheric_poses(radius, n_poses=120):
 
 
 class LLFFDataset(Dataset):
-    def __init__(self, root_dir, split='train', img_wh=(504, 378), spheric_poses=False, val_num=1):
+    def __init__(self, 
+        root_dir,
+        split='train',
+        img_wh=(504, 378),
+        spheric_poses=False,
+        start = 0,
+        period = 1,
+        end = 30,
+        val_num=1
+    ):
         """
         spheric_poses: whether the images are taken in a spheric inward-facing manner
                        default: False (forward-facing)
         val_num: number of val images (used for multigpu training, validate same image for all gpus)
+        start : starting number of the frame
+        end : end number of the frame
+        period : periodicity of selection of frame
         """
         self.root_dir = root_dir
         self.split = split
         self.img_wh = img_wh
         self.spheric_poses = spheric_poses
         self.val_num = max(1, val_num) # at least 1
+        self.start = start
+        self.end = end
+        self.period = period
         self.define_transforms()
 
         self.read_meta()
@@ -222,6 +237,13 @@ class LLFFDataset(Dataset):
         # COLMAP poses has rotation in form "right down front", change to "right up back"
         # See https://github.com/bmild/nerf/issues/34
         poses = np.concatenate([poses[..., 0:1], -poses[..., 1:3], poses[..., 3:4]], -1)
+        
+        # Filter images 
+        poses = poses[self.start:self.end:self.period]
+        self.image_paths = self.image_paths[self.start :self.end:self.period]
+        self.bounds = self.bounds[self.start:self.end:self.period]
+        
+        #Center the pose
         self.poses, _ = center_poses(poses)
         distances_from_center = np.linalg.norm(self.poses[..., 3], axis=1)
         val_idx = np.argmin(distances_from_center) # choose val image as the closest to
