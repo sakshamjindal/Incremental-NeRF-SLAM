@@ -78,7 +78,11 @@ class NeRFSystem(LightningModule):
     def setup(self, stage):
         dataset = dataset_dict[self.hparams.dataset_name]
         kwargs = {'root_dir': self.hparams.root_dir,
-                  'img_wh': tuple(self.hparams.img_wh)}
+                  'img_wh': tuple(self.hparams.img_wh),
+                  'start': self.hparams.start,
+                  'end' : self.hparams.end,
+                  'period' : self.hparams.period
+                  }
         if self.hparams.dataset_name == 'llff':
             kwargs['spheric_poses'] = self.hparams.spheric_poses
             kwargs['val_num'] = self.hparams.num_gpus
