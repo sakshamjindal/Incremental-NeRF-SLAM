@@ -13,7 +13,12 @@ def get_opts():
                         help='resolution (img_w, img_h) of the image')
     parser.add_argument('--spheric_poses', default=False, action="store_true",
                         help='whether images are taken in spheric poses (for llff)')
-
+    parser.add_argument('--start', type=int, default=0, 
+                        help='number of the starting frame')
+    parser.add_argument('--end', type=int, default=None, 
+                        help='number of the ending frame')
+    parser.add_argument('--period', type=int, default=1, 
+                        help='periodicity to select the frame')                  
     parser.add_argument('--N_samples', type=int, default=64,
                         help='number of coarse samples')
     parser.add_argument('--N_importance', type=int, default=128,
