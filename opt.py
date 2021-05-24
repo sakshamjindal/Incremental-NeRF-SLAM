@@ -6,19 +6,14 @@ def get_opts():
     parser.add_argument('--root_dir', type=str,
                         default='/home/ubuntu/data/nerf_example_data/nerf_synthetic/lego',
                         help='root directory of dataset')
-    parser.add_argument('--dataset_name', type=str, default='blender',
-                        choices=['blender', 'llff'],
+    parser.add_argument('--dataset_name', type=str, default='blender_depth',
+                        choices=['blender', 'llff', 'blender_depth'],
                         help='which dataset to train/val')
     parser.add_argument('--img_wh', nargs="+", type=int, default=[800, 800],
                         help='resolution (img_w, img_h) of the image')
     parser.add_argument('--spheric_poses', default=False, action="store_true",
                         help='whether images are taken in spheric poses (for llff)')
-    parser.add_argument('--start', type=int, default=0, 
-                        help='number of the starting frame')
-    parser.add_argument('--end', type=int, default=None, 
-                        help='number of the ending frame')
-    parser.add_argument('--period', type=int, default=1, 
-                        help='periodicity to select the frame')                  
+
     parser.add_argument('--N_samples', type=int, default=64,
                         help='number of coarse samples')
     parser.add_argument('--N_importance', type=int, default=128,

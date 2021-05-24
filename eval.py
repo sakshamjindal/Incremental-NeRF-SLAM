@@ -32,12 +32,6 @@ def get_opts():
                         help='test or test_train')
     parser.add_argument('--img_wh', nargs="+", type=int, default=[800, 800],
                         help='resolution (img_w, img_h) of the image')
-    parser.add_argument('--start', type=int, default=0, 
-                        help='number of the starting frame')
-    parser.add_argument('--end', type=int, default=None, 
-                        help='number of the ending frame')
-    parser.add_argument('--period', type=int, default=1, 
-                        help='periodicity to select the frame')  
     parser.add_argument('--spheric_poses', default=False, action="store_true",
                         help='whether images are taken in spheric poses (for llff)')
 
@@ -97,11 +91,7 @@ if __name__ == "__main__":
 
     kwargs = {'root_dir': args.root_dir,
               'split': args.split,
-              'img_wh': tuple(args.img_wh),
-              'start': args.start,
-              'end' : args.end,
-              'period' : args.period
-              }
+              'img_wh': tuple(args.img_wh)}
     if args.dataset_name == 'llff':
         kwargs['spheric_poses'] = args.spheric_poses
     dataset = dataset_dict[args.dataset_name](**kwargs)

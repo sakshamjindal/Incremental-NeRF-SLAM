@@ -30,7 +30,9 @@ class NeRFSystem(LightningModule):
         super(NeRFSystem, self).__init__()
         self.hparams = hparams
 
-        self.loss = loss_dict['color'](coef=1)
+        self.loss = loss_dict['joint']() # (coef=1)
+
+        self.val_loss = loss_dict['color']()
 
         self.embedding_xyz = Embedding(3, 10)
         self.embedding_dir = Embedding(3, 4)
@@ -78,15 +80,11 @@ class NeRFSystem(LightningModule):
     def setup(self, stage):
         dataset = dataset_dict[self.hparams.dataset_name]
         kwargs = {'root_dir': self.hparams.root_dir,
-                  'img_wh': tuple(self.hparams.img_wh),
-                  'start': self.hparams.start,
-                  'end' : self.hparams.end,
-                  'period' : self.hparams.period
-                  }
+                  'img_wh': tuple(self.hparams.img_wh)}
         if self.hparams.dataset_name == 'llff':
             kwargs['spheric_poses'] = self.hparams.spheric_poses
             kwargs['val_num'] = self.hparams.num_gpus
-        self.train_dataset = dataset(split='train', **kwargs)
+        self.train_dataset = dataset(split='test', **kwargs)
         self.val_dataset = dataset(split='val', **kwargs)
 
     def configure_optimizers(self):
@@ -97,21 +95,21 @@ class NeRFSystem(LightningModule):
     def train_dataloader(self):
         return DataLoader(self.train_dataset,
                           shuffle=True,
-                          num_workers=4,
+                          num_workers=16,
                           batch_size=self.hparams.batch_size,
                           pin_memory=True)
 
     def val_dataloader(self):
         return DataLoader(self.val_dataset,
                           shuffle=False,
-                          num_workers=4,
+                          num_workers=8,
                           batch_size=1, # validate one image (H*W rays) at a time
                           pin_memory=True)
     
     def training_step(self, batch, batch_nb):
-        rays, rgbs = batch['rays'], batch['rgbs']
+        rays, rgbs, depths = batch['rays'], batch['rgbs'], batch['depths']
         results = self(rays)
-        loss = self.loss(results, rgbs)
+        loss = self.loss(results, rgbs, depths)
 
         with torch.no_grad():
             typ = 'fine' if 'rgb_fine' in results else 'coarse'
@@ -128,7 +126,7 @@ class NeRFSystem(LightningModule):
         rays = rays.squeeze() # (H*W, 3)
         rgbs = rgbs.squeeze() # (H*W, 3)
         results = self(rays)
-        log = {'val_loss': self.loss(results, rgbs)}
+        log = {'val_loss': self.val_loss(results, rgbs)}
         typ = 'fine' if 'rgb_fine' in results else 'coarse'
     
         if batch_nb == 0:
