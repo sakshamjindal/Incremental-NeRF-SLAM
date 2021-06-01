@@ -151,13 +151,21 @@ def render_rays(models,
             return
 
         rgb_map = reduce(rearrange(weights, 'n1 n2 -> n1 n2 1')*rgbs, 'n1 n2 c -> n1 c', 'sum')
-        depth_map = reduce(weights*z_vals, 'n1 n2 -> n1', 'sum')
+        depth_map_size = reduce(weights*z_vals, 'n1 n2 -> n1 1', 'sum')
+        depth_map = rearrange(depth_map_size, 'n1 n2 -> (n1 n2)')
+
+        # add variance and standard deviation calculation
+        depth_var = reduce((weights*((depth_map_size - z_vals)**2)), 'n1 n2 -> n1 1', 'sum')   #(weights*((depth_map_size - z_vals)**2))
+        depth_std = depth_var**(0.5)
+        # print("[INFO] DEPTH VALUES", torch.min(depth_map_size), torch.min(depth_var), torch.max(depth_map_size), torch.max(depth_var))
+        # exit(0)
 
         if white_back:
             rgb_map += 1-weights_sum.unsqueeze(1)
 
         results[f'rgb_{typ}'] = rgb_map
-        results[f'depth_{typ}'] = depth_map
+        results[f'depth_{typ}'] = depth_map_size
+        results[f'depth_std_{typ}'] = depth_std
 
         return
 

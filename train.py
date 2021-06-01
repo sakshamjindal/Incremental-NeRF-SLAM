@@ -30,7 +30,9 @@ class NeRFSystem(LightningModule):
         super(NeRFSystem, self).__init__()
         self.hparams = hparams
 
-        self.loss = loss_dict['joint']() # (coef=1)
+        self.loss1 = loss_dict['color'](coef=1)
+        self.loss2 = loss_dict['depth'](coef=0.2)
+        # self.loss = loss_dict['joint']() # (coef=1)
 
         self.val_loss = loss_dict['color']()
 
@@ -109,14 +111,18 @@ class NeRFSystem(LightningModule):
     def training_step(self, batch, batch_nb):
         rays, rgbs, depths = batch['rays'], batch['rgbs'], batch['depths']
         results = self(rays)
-        loss = self.loss(results, rgbs, depths)
+        loss1 = self.loss1(results, rgbs)
+        loss2 = self.loss2(results, depths)
+        loss = loss1 + loss2
 
         with torch.no_grad():
             typ = 'fine' if 'rgb_fine' in results else 'coarse'
             psnr_ = psnr(results[f'rgb_{typ}'], rgbs)
 
         self.log('lr', get_learning_rate(self.optimizer))
-        self.log('train/loss', loss)
+        self.log('train/rgb_loss', loss1)
+        self.log('train/depth_loss', loss2)
+        self.log('train/total_loss', loss)
         self.log('train/psnr', psnr_, prog_bar=True)
 
         return loss

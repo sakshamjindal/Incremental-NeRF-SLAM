@@ -5,7 +5,7 @@ class ColorLoss(nn.Module):
     def __init__(self, coef=1):
         super().__init__()
         self.coef = coef
-        self.loss = nn.L1Loss(reduction='mean')
+        self.loss = nn.MSELoss(reduction='mean')
 
     def forward(self, inputs, targets):
         loss = self.loss(inputs['rgb_coarse'], targets)
@@ -21,18 +21,21 @@ class DepthLoss(nn.Module):
         self.coef = coef
 
     def forward(self, inputs, targets_depth):
-        loss = torch.mean(torch.abs(inputs['depth_coarse'] - targets_depth))# / (inputs['depth_std_coarse']+1e-9))
+        # mask = (targets_depth>0)
+        loss = torch.mean(torch.abs(inputs['depth_coarse'] - targets_depth) )# / (inputs['depth_std_coarse']+1))
         if 'rgb_fine' in inputs:
-            loss += torch.mean(torch.abs(inputs['depth_fine'] - targets_depth))# / (inputs['depth_fine']+1e-9))
-
+            loss += torch.mean(torch.abs(inputs['depth_fine'] - targets_depth) )# / (inputs['depth_fine']+1))
+        # loss = torch.mean(torch.abs(inputs['depth_coarse'] - targets_depth) / (inputs['depth_std_coarse']+1e-6))
+        # if 'rgb_fine' in inputs:
+        #     loss += torch.mean(torch.abs(inputs['depth_fine'] - targets_depth) / (inputs['depth_fine']+1e-6))
         # print("[INFO] DEPTH LOSS CALC", loss)
         return self.coef * loss
 
 class JointLoss(nn.Module):
     def __init__(self):
         super().__init__()
-        self.loss1 = ColorLoss(coef=5)
-        self.loss2 = DepthLoss(coef=1)
+        self.loss1 = ColorLoss(coef=1)
+        self.loss2 = DepthLoss(coef=0.2)
 
     def forward(self, inputs, target_rgb, target_depths):
         # print("[INFO SHAPES]", inputs['depth_coarse'].shape, inputs['rgb_coarse'].shape, inputs['depth_std_coarse'].shape, target_depths.shape)
