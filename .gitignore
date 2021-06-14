@@ -1,7 +1,7 @@
 .vscode/
 logs/
 ckpts/
-notebooks/
+notebooks/*
 results/*/*
 *.plys
 *.vol
