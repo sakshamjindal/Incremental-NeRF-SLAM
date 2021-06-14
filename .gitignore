@@ -1,9 +1,15 @@
 .vscode/
 logs/
 ckpts/
-results/
-*.ply
+notebooks/
+results/*/*
+*.plys
 *.vol
+*.mp4
+
+*.ipynb_checkpoints
+*/*.ipynb_checkpoints
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
