@@ -192,11 +192,17 @@ class LLFFDataset(Dataset):
         self.white_back = False
 
     def read_meta(self):
+
+        from gradslam.datasets.tum import TUM
+        dataset = TUM("/scratch/saksham/data/tum/", sequences = "sequences.txt", seqlen = 30, start = 56)
+        self.colors, depths, intrinsics, poses, transforms, names, timestamps = dataset[0]
+        num_images = self.colors.shape[0]
+
         # Step 1: rescale focal length according to training resolution
-        camdata = read_cameras_binary(os.path.join(self.root_dir, 'sparse/0/cameras.bin'))
-        H = camdata[1].height
-        W = camdata[1].width
-        self.focal = camdata[1].params[0] * self.img_wh[0]/W
+        H = 480
+        W = 640
+        focal = 550
+        self.focal = focal * self.img_wh[0]/W
 
         # Step 2: correct poses
         # read extrinsics (of successfully reconstructed images)
@@ -215,44 +221,21 @@ class LLFFDataset(Dataset):
         w2c_mats = np.stack(w2c_mats, 0)
         poses = np.linalg.inv(w2c_mats) # (N_images, 4, 4) cam2world matrices
 
-        # transformation of poses from arbritary initial pose to identity matrix
         from gradslam.geometry.geometryutils import relative_transformation
         poses = torch.from_numpy(poses).float()
         poses = relative_transformation(
             poses[0].unsqueeze(0).repeat(poses.shape[0], 1, 1), poses, orthogonal_rotations = True
         )
-        poses = poses.numpy().astype('float64')
-        poses = poses[:, :3] # (N_images, 4, 4) cam2world matrices
         
-        # read bounds
-        self.bounds = np.zeros((len(poses), 2)) # (N_images, 2)
-        pts3d = read_points3d_binary(os.path.join(self.root_dir, 'sparse/0/points3D.bin'))
-        pts_world = np.zeros((1, 3, len(pts3d))) # (1, 3, N_points)
-        visibilities = np.zeros((len(poses), len(pts3d))) # (N_images, N_points)
-        for i, k in enumerate(pts3d):
-            pts_world[0, :, i] = pts3d[k].xyz
-            for j in pts3d[k].image_ids:
-                visibilities[j-1, i] = 1
-        # calculate each point's depth w.r.t. each camera
-        # it's the dot product of "points - camera center" and "camera frontal axis"
-        depths = ((pts_world-poses[..., 3:4])*poses[..., 2:3]).sum(1) # (N_images, N_points)
-        for i in range(len(poses)):
-            visibility_i = visibilities[i]
-            zs = depths[i][visibility_i==1]
-            self.bounds[i] = [np.percentile(zs, 0.1), np.percentile(zs, 99.9)]
-        # permute the matrices to increasing order
-        poses = poses[perm]
-        self.bounds = self.bounds[perm]
-
-        # Filter images
-        if self.start is not None and self.end is not None:
-            poses = poses[self.start:self.end:self.period]
-            self.image_paths = self.image_paths[self.start :self.end:self.period]
-            self.bounds = self.bounds[self.start:self.end:self.period]
-        
+        poses = poses.numpy()[:, :3].astype('float64')
+      
         # COLMAP poses has rotation in form "right down front", change to "right up back"
         # See https://github.com/bmild/nerf/issues/34
+        poses = np.load("notebooks/tum_aligned.npy")
+        poses = poses[:, :3].astype('float64')
         poses = np.concatenate([poses[..., 0:1], -poses[..., 1:3], poses[..., 3:4]], -1)
+        
+        #Center the pose
         self.poses, _ = center_poses(poses)
         distances_from_center = np.linalg.norm(self.poses[..., 3], axis=1)
         val_idx = np.argmin(distances_from_center) # choose val image as the closest to
@@ -260,11 +243,12 @@ class LLFFDataset(Dataset):
 
         # Step 3: correct scale so that the nearest depth is at a little more than 1.0
         # See https://github.com/bmild/nerf/issues/34
-        near_original = self.bounds.min()
-        scale_factor = near_original*0.75 # 0.75 is the default parameter
-                                          # the nearest depth is at 1/0.75=1.33
-        self.bounds /= scale_factor
-        self.poses[..., 3] /= scale_factor
+        # near_original = self.bounds.min()
+        # scale_factor = near_original*0.75 # 0.75 is the default parameter
+        #                                   # the nearest depth is at 1/0.75=1.33
+        # scale_factor = 1
+        # self.bounds /= scale_factor
+        # self.poses[..., 3] /= scale_factor
 
         # ray directions for all pixels, same for all images (same H, W, focal)
         self.directions = \
@@ -279,20 +263,30 @@ class LLFFDataset(Dataset):
                     continue
                 c2w = torch.FloatTensor(self.poses[i])
 
-                img = Image.open(image_path).convert('RGB')
+                img = self.colors[i]
+                img = Image.fromarray(img.numpy().astype('uint8')).convert('RGB')
                 img = img.resize(self.img_wh, Image.LANCZOS)
-                img = self.transform(img) # (3, h, w)
-                img = img.view(3, -1).permute(1, 0) # (h*w, 3) RGB
+                img = self.transform(img)
+                img = img.view(3, -1).permute(1, 0)
                 self.all_rgbs += [img]
+
+                # img = Image.open(image_path).convert('RGB')
+                # # assert img.size[1]*self.img_wh[0] == img.size[0]*self.img_wh[1], \
+                # #     f'''{image_path} has different aspect ratio than img_wh, 
+                # #         please check your data!'''
+                # img = img.resize(self.img_wh, Image.LANCZOS)
+                # img = self.transform(img) # (3, h, w)
+                # img = img.view(3, -1).permute(1, 0) # (h*w, 3) RGB
+                # self.all_rgbs += [img]
                 
                 rays_o, rays_d = get_rays(self.directions, c2w) # both (h*w, 3)
                 if not self.spheric_poses:
                     near, far = 0, 1
                     rays_o, rays_d = get_ndc_rays(self.img_wh[1], self.img_wh[0],
                                                   self.focal, 1.0, rays_o, rays_d)
-                                    #  near plane is always at 1.0
-                                    #  near and far in NDC are always 0 and 1
-                                    #  See https://github.com/bmild/nerf/issues/34
+                                     # near plane is always at 1.0
+                                     # near and far in NDC are always 0 and 1
+                                     # See https://github.com/bmild/nerf/issues/34
                 else:
                     near = self.bounds.min()
                     far = min(8 * near, self.bounds.max()) # focus on central object only
@@ -367,10 +361,18 @@ class LLFFDataset(Dataset):
             if self.split in ['val', 'test_train']:
                 if self.split == 'val':
                     idx = self.val_idx
-                img = Image.open(self.image_paths[idx]).convert('RGB')
+
+                img = self.colors[idx]          
+                img = Image.fromarray(img.numpy().astype('uint8')).convert('RGB')
                 img = img.resize(self.img_wh, Image.LANCZOS)
                 img = self.transform(img) # (3, h, w)
                 img = img.view(3, -1).permute(1, 0) # (h*w, 3)
                 sample['rgbs'] = img
+
+                # img = Image.open(self.image_paths[idx]).convert('RGB')
+                # img = img.resize(self.img_wh, Image.LANCZOS)
+                # img = self.transform(img) # (3, h, w)
+                # img = img.view(3, -1).permute(1, 0) # (h*w, 3)
+                # sample['rgbs'] = img
 
         return sample

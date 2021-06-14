@@ -32,7 +32,7 @@ class NeRFSystem(LightningModule):
         super(NeRFSystem, self).__init__()
         self.hparams = hparams
 
-        if self.hparams.lamda > 0:
+        if self.hparams.dataset_name == "llff_tum":
             self.loss = [
                 loss_dict['color'](coef=1),
                 loss_dict['depth'](coef=1) 
@@ -119,8 +119,7 @@ class NeRFSystem(LightningModule):
     
     def training_step(self, batch, batch_nb):
         rays, rgbs = batch['rays'], batch['rgbs']
-
-        if self.hparams.lamda > 0:
+        if self.hparams.dataset_name == "llff_tum":
             masks = batch['masks']
             depths = batch['depths']
 
@@ -128,7 +127,7 @@ class NeRFSystem(LightningModule):
         rgb_results = {k: v for k, v in results.items() if 'rgb' in k}
         loss_rgb = self.loss[0](rgb_results, rgbs)
         
-        if self.hparams.lamda > 0:
+        if self.hparams.dataset_name == "llff_tum":
             depth_results = {k: v for k, v in results.items() if 'depth' in k}
             loss_depth = self.loss[1](depth_results, depths, masks)
         
@@ -136,14 +135,14 @@ class NeRFSystem(LightningModule):
             typ = 'fine' if 'rgb_fine' in results else 'coarse'
             psnr_ = psnr(results[f'rgb_{typ}'], rgbs)
         
-        if self.hparams.lamda > 0:
+        if self.hparams.dataset_name == "llff_tum":
             loss = loss_rgb + self.hparams.lamda*loss_depth
         else:
             loss = loss_rgb
 
         self.log('lr', get_learning_rate(self.optimizer))
         self.log('train/rgb_loss', loss_rgb)
-        if self.hparams.lamda > 0:
+        if self.hparams.dataset_name == "llff_tum":
             self.log('train/depth_loss', loss_depth)
         self.log('train/loss', loss)
         self.log('train/psnr', psnr_, prog_bar=True)
@@ -152,7 +151,7 @@ class NeRFSystem(LightningModule):
 
     def validation_step(self, batch, batch_nb):
         rays, rgbs = batch['rays'], batch['rgbs'] # (h*w,8), (h*w, 3)
-        if self.hparams.lamda > 0:
+        if self.hparams.dataset_name == "llff_tum":
             depths = batch['depths'] #(h*w)
             masks = batch['masks']
 
@@ -160,12 +159,12 @@ class NeRFSystem(LightningModule):
         rgbs = rgbs.squeeze() # (H*W, 3)
         results = self(rays)
         rgb_results = {k: v for k, v in results.items() if 'rgb' in k}
-        if self.hparams.lamda > 0:
+        if self.hparams.dataset_name == "llff_tum":
             depth_results  = {k: v for k, v in results.items() if 'depth' in k}
 
         log = {'val_rgb_loss': self.loss[0](rgb_results, rgbs)}
 
-        if self.hparams.lamda > 0:
+        if self.hparams.dataset_name == "llff_tum":
             log['val_depth_loss'] = self.loss[1](depth_results, depths, masks)
 
         typ = 'fine' if 'rgb_fine' in results else 'coarse'
@@ -174,7 +173,7 @@ class NeRFSystem(LightningModule):
             W, H = self.hparams.img_wh
             img = results[f'rgb_{typ}'].view(H, W, 3).permute(2, 0, 1).cpu() # (3, H, W)
             img_gt = rgbs.view(H, W, 3).permute(2, 0, 1).cpu() # (3, H, W)
-            if self.hparams.lamda > 0:
+            if self.hparams.dataset_name == "llff_tum":
                 depth_gt = visualize_depth(depths.view(H, W)) # (3, H, W)
 
             depth = visualize_depth(results[f'depth_{typ}'].view(H, W), resize = True) # resize to (640,320)
@@ -182,12 +181,12 @@ class NeRFSystem(LightningModule):
             self.logger.experiment.add_images('val/GT_pred_image_depth',
                                             stack, self.current_epoch)
 
-            if self.hparams.lamda == 0.0:  
+            if self.hparams.dataset_name != "llff_tum":  
                 self.logger.experiment.add_images('val/depth_images',
                                     depth.unsqueeze(0), self.current_epoch)
 
             
-            if self.hparams.lamda > 0:
+            if self.hparams.dataset_name == "llff_tum":
                 stack = torch.stack([depth_gt, depth]) #(2, 3, H, W) 
                 self.logger.experiment.add_images('val/depth_images',
                                     stack, self.current_epoch)
@@ -200,13 +199,13 @@ class NeRFSystem(LightningModule):
     def validation_epoch_end(self, outputs):
 
         mean_rgb_loss = torch.stack([x['val_rgb_loss'] for x in outputs]).mean()
-        if self.hparams.lamda > 0:
+        if self.hparams.dataset_name == "llff_tum":
             mean_depth_loss = torch.stack([x['val_depth_loss'] for x in outputs]).mean()
         
         mean_psnr = torch.stack([x['val_psnr'] for x in outputs]).mean()
 
         self.log('val/rgb_loss', mean_rgb_loss)
-        if self.hparams.lamda > 0:
+        if self.hparams.dataset_name == "llff_tum":
             self.log('val/depth_loss', mean_depth_loss)
 
         self.log('val/psnr', mean_psnr, prog_bar=True)

@@ -123,9 +123,11 @@ class TUMRGBDDataset(object):
 
             rgb_ids = []
             depth_ids = []
+            self.rgb_d_mapping = {}
             for i, j in pairs:
                 rgb_ids.append(rgb_imgs[i])
                 depth_ids.append(depth_imgs[j])
+                self.rgb_d_mapping[os.path.basename(rgb_imgs[i])] = os.path.basename(depth_imgs[j])
 
         self.rgb = ImageReader(rgb_ids, rgb_timestamps)
         self.depth = ImageReader(depth_ids, depth_timestamps)
@@ -145,7 +147,7 @@ class TUMRGBDDataset(object):
         return imgs, np.array(timestamps)
 
     def __getitem__(self, idx):
-        return self.rgb[idx], self.depth[idx]
+        return self.rgb[idx], self.depth[idx], self.timestamps[idx]
 
     def __len__(self):
         return len(self.rgb)

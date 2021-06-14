@@ -1,0 +1,315 @@
+Experiment Commands
+
+Exp 1 : 
+python train.py \
+   --dataset_name llff \
+   --root_dir "/scratch/saksham/data/freiburg_small/" \
+   --N_importance 64 --img_wh 504 378 \
+   --num_epochs 30 --batch_size 1024 \
+   --optimizer adam --lr 5e-4 \
+   --lr_scheduler steplr --decay_step 10 20 --decay_gamma 0.5 \
+   --exp_name "freiburg_small_1" \
+   --num_gpus 2
+
+python eval.py \
+   --root_dir "/scratch/saksham/data/freiburg_small/" \
+   --dataset_name llff --scene_name freiburg_small_1 \
+   --start 0 --end 30 \
+   --img_wh 504 378 --N_importance 64 --ckpt_path "ckpts/freiburg_small_1/epoch=18.ckpt"
+
+
+Exp 2:
+python train.py \
+   --dataset_name llff_tum \
+   --root_dir "/scratch/saksham/data/freiburg_small/" \
+   --N_importance 64 --img_wh 504 378 \
+   --num_epochs 30 --batch_size 1024 \
+   --optimizer adam --lr 5e-4 \
+   --lr_scheduler steplr --decay_step 10 20 --decay_gamma 0.5 \
+   --exp_name "test" \
+   --num_gpus 1
+
+Exp 2:
+# Small depth
+python train.py \
+   --dataset_name llff_tum \
+   --root_dir "/scratch/saksham/data/freiburg_small/" \
+   --N_importance 64 --img_wh 160 120 \
+   --num_epochs 30 --batch_size 1024 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 34 \
+   --lr_scheduler steplr --decay_step 10 20 --decay_gamma 0.5 \
+   --exp_name "freiburg_small_Exp2" \
+   --num_gpus 1
+
+Exp 3:
+# Small Image
+python train.py \
+   --dataset_name llff \
+   --root_dir "/scratch/saksham/data/freiburg_small/" \
+   --N_importance 64 --img_wh 160 120 \
+   --num_epochs 30 --batch_size 1024 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 30 \
+   --lr_scheduler steplr --decay_step 10 20 --decay_gamma 0.5 \
+   --exp_name "freiburg_small_Exp3" \
+   --num_gpus 1
+
+Exp 4.1
+python train.py \
+   --dataset_name llff_tum \
+   --root_dir "/scratch/saksham/data/freiburg_small/" \
+   --N_importance 64 --img_wh 80 60 \
+   --num_epochs 60 --batch_size 1024 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 35 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "tum_desk_exp4_lamda_0" \
+   --gpus 1 --lamda 0
+
+Exp 4.2
+python train.py \
+   --dataset_name llff_tum \
+   --root_dir "/scratch/saksham/data/freiburg_small/" \
+   --N_importance 64 --img_wh 80 60 \
+   --num_epochs 60 --batch_size 1024 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 35 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "tum_desk_exp4_lamda_0.1" \
+   --gpus 1 --lamda 0.1
+
+Exp 4.3
+python train.py \
+   --dataset_name llff_tum \
+   --root_dir "/scratch/saksham/data/freiburg_small/" \
+   --N_importance 64 --img_wh 80 60 \
+   --num_epochs 60 --batch_size 1024 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 35 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "tum_desk_exp4.3_lamda_1" \
+   --gpus 0 --lamda 1
+
+Exp 4.4
+python train.py \
+   --dataset_name llff_tum \
+   --root_dir "/scratch/saksham/data/freiburg_small/" \
+   --N_importance 64 --img_wh 80 60 \
+   --num_epochs 60 --batch_size 1024 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 35 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "tum_desk_exp4.4_lamda_10" \
+   --gpus 0 --lamda 10
+
+
+Exp 5
+python train.py \
+   --dataset_name llff \
+   --root_dir "/scratch/saksham/data/freiburg_small/" \
+   --N_importance 64 --img_wh 80 60 \
+   --num_epochs 60 --batch_size 1024 \
+   --optimizer adam --lr 5e-4 \
+    --start 3 --end 100 --period 3 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "tum_desk_exp5_long_rgb" \
+   --gpus 1 --lamda 0
+
+python eval.py \
+   --root_dir "/scratch/saksham/data/freiburg_small/" \
+   --dataset_name llff --scene_name tum_desk_exp5 \
+    --start 3 --end 100 --period 3 \
+   --img_wh 80 60 --N_importance 64 --ckpt_path "ckpts/tum_desk_exp5_long_rgb/epoch=18.ckpt"
+
+
+Exp 6:
+python train.py \
+   --dataset_name tum \
+   --root_dir "/scratch/saksham/data/tum/" \
+   --N_importance 64 --img_wh 80 60 \
+   --num_epochs 60 --batch_size 1024 \
+   --optimizer adam --lr 5e-4 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "tum_desk_exp6" \
+   --gpus 1 --lamda 0
+
+Exp 7:
+python train.py \
+   --dataset_name llff \
+   --root_dir "/scratch/saksham/data/freiburg_small/" \
+   --N_importance 64 --img_wh 80 60 \
+   --num_epochs 60 --batch_size 1024 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 30 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "tum_desk_exp7.1" \
+   --gpus 1 --lamda 0
+
+
+Exp 8:
+python train.py \
+   --dataset_name llff \
+   --root_dir "/scratch/saksham/data/freiburg_small/" \
+   --N_importance 64 --img_wh 80 60 \
+   --num_epochs 60 --batch_size 1024 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 30 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "tum_desk_exp8" \
+   --gpus 1 --lamda 0
+
+Exp 10:
+python train.py \
+   --dataset_name tum \
+   --root_dir "/scratch/saksham/data/tum/" \
+   --N_importance 64 --img_wh 80 60 \
+   --num_epochs 60 --batch_size 1024 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 30 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "tum_desk_exp10" \
+   --gpus 1 --lamda 0
+
+#tum dataloader with colmap poses;
+Didn't work
+python train.py \
+   --dataset_name tum \
+   --root_dir "/scratch/saksham/data/tum/" \
+   --N_importance 64 --img_wh 80 60 \
+   --num_epochs 60 --batch_size 1024 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 30 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "test" \
+   --gpus 1 --lamda 0
+
+#llff dataloader with tum aligned poses
+#Works
+python train.py \
+   --dataset_name llff \
+   --root_dir "/scratch/saksham/data/freiburg_small/" \
+   --N_importance 64 --img_wh 80 60 \
+   --num_epochs 60 --batch_size 1024 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 30 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "test2" \
+   --gpus 1 --lamda 0
+
+
+#llff dataloader with tum aligned poses and tum images
+# test3
+python train.py \
+   --dataset_name llff_2 \
+   --root_dir "/scratch/saksham/data/freiburg_small/" \
+   --N_importance 64 --img_wh 80 60 \
+   --num_epochs 60 --batch_size 1024 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 30 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "test3" \
+   --gpus 1 --lamda 0
+
+#tum dataloader with corrected image sizes but poses aligned
+# test 4
+python train.py \
+   --dataset_name tum \
+   --root_dir "/scratch/saksham/data/tum/" \
+   --N_importance 64 --img_wh 80 60 \
+   --num_epochs 60 --batch_size 1024 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 30 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "test4" \
+   --gpus 1 --lamda 0
+
+#tum dataloader with corrected image sizes but poses not aligned
+#test 5
+python train.py \
+   --dataset_name tum \
+   --root_dir "/scratch/saksham/data/tum/" \
+   --N_importance 64 --img_wh 80 60 \
+   --num_epochs 60 --batch_size 1024 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 30 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "test5" \
+   --gpus 1 --lamda 0
+
+
+#just trying to test effect of scale factor
+Exp 12.0 : original scale
+Exp 12.1 : scale_factor = 1
+Exp 12.2 : origianl scale with colmap pose transformations
+python train.py \
+   --dataset_name llff \
+   --root_dir "/scratch/saksham/data/freiburg_small/" \
+   --N_importance 64 --img_wh 80 60 \
+   --num_epochs 60 --batch_size 1024 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 30 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "tum_desk_exp12" \
+   --gpus 1 --lamda 0
+
+
+# Exp 13.0 --- scale_factor = 1, near = bounds.min(), far = bounds.max(),without --use_disp
+# Exp 13.1 -- scale_factor = 1, near = bounds.min()], far = bounds.max(),  --use_disp
+# and removing NDC
+python train.py \
+   --dataset_name llff_non_ndc \
+   --use_disp \
+   --root_dir "/scratch/saksham/data/freiburg_small/" \
+   --N_importance 64 --img_wh 80 60 \
+   --num_epochs 60 --batch_size 1024 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 30 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "tum_desk_exp13" \
+   --gpus 1 --lamda 0
+
+# Exp 14.0 --- scale_factor = 1, near = 0.5 , far = 10 ,  --use_disp
+Non-NDC
+python train.py \
+   --dataset_name tum \
+   --use_disp \
+   --root_dir "/scratch/saksham/data/tum/" \
+   --N_importance 64 --img_wh 80 60 \
+   --num_epochs 60 --batch_size 1024 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 30 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "tum_desk_exp14" \
+   --gpus 1 --lamda 0
+
+Exp 15
+Non-NDC
+python train.py \
+   --dataset_name tum \
+   --use_disp \
+   --root_dir "/scratch/saksham/data/tum/" \
+   --N_importance 64 --img_wh 80 60 \
+   --num_epochs 60 --batch_size 1024 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 30 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "tum_desk_exp15" \
+   --gpus 1 --lamda 1.0
+
+Exp 16
+Non-NDC
+near = 0 and far = 1
+scale_factor = 4.799326327027303
+visualised with min=0 and max = 1
+python train.py \
+--dataset_name tum \
+--root_dir "/scratch/saksham/data/tum/" \
+--use_disp \
+--N_importance 64 --img_wh 80 60 \
+--num_epochs 60 --batch_size 1024 \
+--optimizer adam --lr 5e-4 \
+--start 0 --end 30 \
+--lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+--exp_name "tum_desk_exp16" \
+--gpus 1 --lamda 0

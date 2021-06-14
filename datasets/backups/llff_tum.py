@@ -11,12 +11,22 @@ from typing import Optional
 from .ray_utils import *
 from .colmap_utils import \
     read_cameras_binary, read_images_binary, read_points3d_binary
+from datasets.tum import TUMRGBDDataset
 
+# At scene level, 
+# depths = depths[depths>0] # 25% of the pixels are zero
+# np.percentile(depths.flatten(), 99.9) -> near_depth_tum -> 3.8844
+# np.percentile(depths.flatten(),0.01 ) -> far_depth_tum -> 0.4482
+
+near_depth_tum = 0.4482
+far_depth_tum = 3.8844
+
+def convert_to_ndc(d):
+    return 1 - 1/d
 
 def normalize(v):
     """Normalize a vector."""
     return v/np.linalg.norm(v)
-
 
 def average_poses(poses):
     """
@@ -159,6 +169,7 @@ def create_spheric_poses(radius, n_poses=120):
         spheric_poses += [spheric_pose(th, -np.pi/5, radius)] # 36 degree view downwards
     return np.stack(spheric_poses, 0)
 
+
 class LLFFDataset(Dataset):
     def __init__(self, 
         root_dir,
@@ -192,6 +203,12 @@ class LLFFDataset(Dataset):
         self.white_back = False
 
     def read_meta(self):
+        
+        #Step 0: Obtain rgb depth mapping form original dataset
+        self.tum_path = "/scratch/saksham/data/tum/rgbd_dataset_freiburg1_desk/"
+        self.rgb_depth_mapping = TUMRGBDDataset(self.tum_path).rgb_d_mapping
+
+        
         # Step 1: rescale focal length according to training resolution
         camdata = read_cameras_binary(os.path.join(self.root_dir, 'sparse/0/cameras.bin'))
         H = camdata[1].height
@@ -201,10 +218,12 @@ class LLFFDataset(Dataset):
         # Step 2: correct poses
         # read extrinsics (of successfully reconstructed images)
         imdata = read_images_binary(os.path.join(self.root_dir, 'sparse/0/images.bin'))
+        # imdata = {k:v for k,v in imdata.items() if imdata[k].name in self.rgb_depth_mapping.keys()}
         perm = np.argsort([imdata[k].name for k in imdata])
         # read successfully reconstructed images and ignore others
         self.image_paths = [os.path.join(self.root_dir, 'images', name)
                             for name in sorted([imdata[k].name for k in imdata])]
+
         w2c_mats = []
         bottom = np.array([0, 0, 0, 1.]).reshape(1, 4)
         for k in imdata:
@@ -213,16 +232,7 @@ class LLFFDataset(Dataset):
             t = im.tvec.reshape(3, 1)
             w2c_mats += [np.concatenate([np.concatenate([R, t], 1), bottom], 0)]
         w2c_mats = np.stack(w2c_mats, 0)
-        poses = np.linalg.inv(w2c_mats) # (N_images, 4, 4) cam2world matrices
-
-        # transformation of poses from arbritary initial pose to identity matrix
-        from gradslam.geometry.geometryutils import relative_transformation
-        poses = torch.from_numpy(poses).float()
-        poses = relative_transformation(
-            poses[0].unsqueeze(0).repeat(poses.shape[0], 1, 1), poses, orthogonal_rotations = True
-        )
-        poses = poses.numpy().astype('float64')
-        poses = poses[:, :3] # (N_images, 4, 4) cam2world matrices
+        poses = np.linalg.inv(w2c_mats)[:, :3] # (N_images, 3, 4) cam2world matrices
         
         # read bounds
         self.bounds = np.zeros((len(poses), 2)) # (N_images, 2)
@@ -243,28 +253,33 @@ class LLFFDataset(Dataset):
         # permute the matrices to increasing order
         poses = poses[perm]
         self.bounds = self.bounds[perm]
-
+        
+        # COLMAP poses has rotation in form "right down front", change to "right up back"
+        # See https://github.com/bmild/nerf/issues/34
+        poses = np.concatenate([poses[..., 0:1], -poses[..., 1:3], poses[..., 3:4]], -1)
+        
         # Filter images
         if self.start is not None and self.end is not None:
             poses = poses[self.start:self.end:self.period]
             self.image_paths = self.image_paths[self.start :self.end:self.period]
             self.bounds = self.bounds[self.start:self.end:self.period]
         
-        # COLMAP poses has rotation in form "right down front", change to "right up back"
-        # See https://github.com/bmild/nerf/issues/34
-        poses = np.concatenate([poses[..., 0:1], -poses[..., 1:3], poses[..., 3:4]], -1)
+        #Center the pose
         self.poses, _ = center_poses(poses)
         distances_from_center = np.linalg.norm(self.poses[..., 3], axis=1)
-        val_idx = np.argmin(distances_from_center) # choose val image as the closest to
-                                                   # center image
+        # val_idx = np.argmin(distances_from_center) # choose val image as the closest to
+        #                                            # center image
+        val_idx = 5
 
         # Step 3: correct scale so that the nearest depth is at a little more than 1.0
         # See https://github.com/bmild/nerf/issues/34
-        near_original = self.bounds.min()
-        scale_factor = near_original*0.75 # 0.75 is the default parameter
+        self.near_depth_colmap = self.bounds.min() # 1% percentile
+        self.far_depth_colmap = self.bounds.max() # 99% percentile
+        self.near_original = self.bounds.min()
+        self.scale_factor = self.near_original*0.75 # 0.75 is the default parameter
                                           # the nearest depth is at 1/0.75=1.33
-        self.bounds /= scale_factor
-        self.poses[..., 3] /= scale_factor
+        self.bounds /= self.scale_factor
+        self.poses[..., 3] /= self.scale_factor
 
         # ray directions for all pixels, same for all images (same H, W, focal)
         self.directions = \
@@ -274,25 +289,55 @@ class LLFFDataset(Dataset):
                                   # use first N_images-1 to train, the LAST is val
             self.all_rays = []
             self.all_rgbs = []
+            self.all_depths = []
+            self.all_masks = []
             for i, image_path in enumerate(self.image_paths):
                 if i == val_idx: # exclude the val image
                     continue
                 c2w = torch.FloatTensor(self.poses[i])
-
+                
+                image_path = self.image_paths[i]
+                image_id = os.path.basename(image_path)
+                try:
+                    depth_id = self.rgb_depth_mapping[image_id]
+                except:
+                    #print(i, image_id)
+                    continue
+                depth_path = os.path.join((os.path.join(self.tum_path,"depth")),depth_id)
+                
                 img = Image.open(image_path).convert('RGB')
+                # assert img.size[1]*self.img_wh[0] == img.size[0]*self.img_wh[1], \
+                #     f'''{image_path} has different aspect ratio than img_wh, 
+                #         please check your data!'''
                 img = img.resize(self.img_wh, Image.LANCZOS)
                 img = self.transform(img) # (3, h, w)
                 img = img.view(3, -1).permute(1, 0) # (h*w, 3) RGB
                 self.all_rgbs += [img]
+                
+                depth = cv2.imread(depth_path, -1)
+                depth = cv2.resize(depth, (self.img_wh), interpolation = cv2.INTER_NEAREST)
+                depth = depth/5000 # depth on metric scale
+                mask = 1 - (depth==0).astype('uint8')
+                mask = torch.Tensor(mask)
+                mask = mask.view(1, -1).permute(1,0)
+                self.all_masks += mask
+                
+                scaled_depth = (self.far_depth_colmap - self.near_depth_colmap)*(depth - near_depth_tum)/(far_depth_tum - near_depth_tum) + self.near_depth_colmap
+                scaled_depth[scaled_depth < self.near_original] = self.near_original
+                scaled_depth = scaled_depth/self.scale_factor
+                ndc_depth = convert_to_ndc(scaled_depth)
+                ndc_depth = torch.Tensor(ndc_depth)
+                ndc_depth = ndc_depth.view(1, -1).permute(1,0)
+                self.all_depths += ndc_depth
                 
                 rays_o, rays_d = get_rays(self.directions, c2w) # both (h*w, 3)
                 if not self.spheric_poses:
                     near, far = 0, 1
                     rays_o, rays_d = get_ndc_rays(self.img_wh[1], self.img_wh[0],
                                                   self.focal, 1.0, rays_o, rays_d)
-                                    #  near plane is always at 1.0
-                                    #  near and far in NDC are always 0 and 1
-                                    #  See https://github.com/bmild/nerf/issues/34
+                                     # near plane is always at 1.0
+                                     # near and far in NDC are always 0 and 1
+                                     # See https://github.com/bmild/nerf/issues/34
                 else:
                     near = self.bounds.min()
                     far = min(8 * near, self.bounds.max()) # focus on central object only
@@ -304,7 +349,9 @@ class LLFFDataset(Dataset):
                                  
             self.all_rays = torch.cat(self.all_rays, 0) # ((N_images-1)*h*w, 8)
             self.all_rgbs = torch.cat(self.all_rgbs, 0) # ((N_images-1)*h*w, 3)
-        
+            self.all_depths = torch.cat(self.all_depths, 0) # ((N_image-1), 1)
+            self.all_masks = torch.cat(self.all_masks, 0)
+            
         elif self.split == 'val':
             print('val image is', self.image_paths[val_idx])
             self.val_idx = val_idx
@@ -337,7 +384,9 @@ class LLFFDataset(Dataset):
     def __getitem__(self, idx):
         if self.split == 'train': # use data in the buffers
             sample = {'rays': self.all_rays[idx],
-                      'rgbs': self.all_rgbs[idx]}
+                      'rgbs': self.all_rgbs[idx],
+                      'depths' : self.all_depths[idx],
+                      'masks': self.all_masks[idx]}
 
         else:
             if self.split == 'val':
@@ -372,5 +421,27 @@ class LLFFDataset(Dataset):
                 img = self.transform(img) # (3, h, w)
                 img = img.view(3, -1).permute(1, 0) # (h*w, 3)
                 sample['rgbs'] = img
+                
+                image_path = self.image_paths[idx]
+                image_id = os.path.basename(image_path)
 
+                depth_id = self.rgb_depth_mapping[image_id]
+                depth_path = os.path.join((os.path.join(self.tum_path,"depth")),depth_id)
+                
+                depth = cv2.imread(depth_path, -1)
+                depth = cv2.resize(depth, (self.img_wh), interpolation = cv2.INTER_NEAREST)
+                depth = depth/5000 # depth on metric scale
+                mask = 1 - (depth==0).astype('uint8')
+                mask = torch.Tensor(mask)
+                mask = mask.view(-1)
+                sample['masks'] = mask
+                
+                scaled_depth = (self.far_depth_colmap - self.near_depth_colmap)*(depth - near_depth_tum)/(far_depth_tum - near_depth_tum) + self.near_depth_colmap
+                scaled_depth[scaled_depth < self.near_original] = self.near_original
+                scaled_depth = scaled_depth/self.scale_factor
+                ndc_depth = convert_to_ndc(scaled_depth)
+                ndc_depth = torch.Tensor(ndc_depth)
+                ndc_depth = ndc_depth.view(-1)
+                sample['depths'] = ndc_depth
+                
         return sample

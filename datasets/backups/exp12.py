@@ -290,9 +290,9 @@ class LLFFDataset(Dataset):
                     near, far = 0, 1
                     rays_o, rays_d = get_ndc_rays(self.img_wh[1], self.img_wh[0],
                                                   self.focal, 1.0, rays_o, rays_d)
-                                    #  near plane is always at 1.0
-                                    #  near and far in NDC are always 0 and 1
-                                    #  See https://github.com/bmild/nerf/issues/34
+                                     # near plane is always at 1.0
+                                     # near and far in NDC are always 0 and 1
+                                     # See https://github.com/bmild/nerf/issues/34
                 else:
                     near = self.bounds.min()
                     far = min(8 * near, self.bounds.max()) # focus on central object only
