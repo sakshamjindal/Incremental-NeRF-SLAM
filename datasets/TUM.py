@@ -221,7 +221,7 @@ class TUMDataset(Dataset):
         num_images = self.colors.shape[0]
         poses = poses.numpy() # (N_images, 3, 4) cam2world matrices
         
-        scale_pose = False
+        scale_pose = True
         if scale_pose:
             poses = scale_poses(poses)
 
@@ -243,7 +243,7 @@ class TUMDataset(Dataset):
         # near_original = np.percentile(depths[depths>0],0.1)
         # scale_factor = near_original*0.75 # 0.75 is the default parameter
         #                                   # the nearest depth is at 1/0.75=1.33
-        scale_factor = 1
+        scale_factor = 25.83046870477367
         # depths /= scale_factor
         self.poses[..., 3] /= scale_factor
 
@@ -287,7 +287,7 @@ class TUMDataset(Dataset):
                 
                 rays_o, rays_d = get_rays(self.directions, c2w) # both (h*w, 3)
                 if not self.spheric_poses:
-                    near, far = 0.5, 10
+                    near, far = 0.05, 1
                     # rays_o, rays_d = get_ndc_rays(self.img_wh[1], self.img_wh[0],
                     #                               self.focal, 1.0, rays_o, rays_d)
                                      # near plane is always at 1.0

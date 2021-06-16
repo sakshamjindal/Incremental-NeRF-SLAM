@@ -261,11 +261,12 @@ class LLFFDataset(Dataset):
         # Step 3: correct scale so that the nearest depth is at a little more than 1.0
         # See https://github.com/bmild/nerf/issues/34
         near_original = self.bounds.min()
-        scale_factor = near_original*0.75 # 0.75 is the default parameter
+        scale_factor = near_original*100 # 0.75 is the default parameter
                                           # the nearest depth is at 1/0.75=1.33
-        scale_factor = 1
+        scale_factor = self.bounds.max()/0.75
         self.bounds /= scale_factor
         self.poses[..., 3] /= scale_factor
+        breakpoint()
 
         # ray directions for all pixels, same for all images (same H, W, focal)
         self.directions = \
@@ -288,12 +289,12 @@ class LLFFDataset(Dataset):
                 
                 rays_o, rays_d = get_rays(self.directions, c2w) # both (h*w, 3)
                 if not self.spheric_poses:
-                    near, far = self.bounds.min(), self.bounds.max()
+                    near, far = 0.05, 1
                     # rays_o, rays_d = get_ndc_rays(self.img_wh[1], self.img_wh[0],
                     #                               self.focal, 1.0, rays_o, rays_d)
-                    #                  # near plane is always at 1.0
-                    #                  # near and far in NDC are always 0 and 1
-                    #                  # See https://github.com/bmild/nerf/issues/34
+                                    #  near plane is always at 1.0
+                                    #  near and far in NDC are always 0 and 1
+                                    #  See https://github.com/bmild/nerf/issues/34
                 else:
                     near = self.bounds.min()
                     far = min(8 * near, self.bounds.max()) # focus on central object only
@@ -350,7 +351,7 @@ class LLFFDataset(Dataset):
 
             rays_o, rays_d = get_rays(self.directions, c2w)
             if not self.spheric_poses:
-                near, far = self.bounds.min(), self.bounds.max()
+                near, far = 0.05, 1
                 # rays_o, rays_d = get_ndc_rays(self.img_wh[1], self.img_wh[0],
                 #                               self.focal, 1.0, rays_o, rays_d)
             else:

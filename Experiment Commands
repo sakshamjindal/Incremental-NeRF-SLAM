@@ -313,3 +313,81 @@ python train.py \
 --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
 --exp_name "tum_desk_exp16" \
 --gpus 1 --lamda 0
+
+
+Exp 17.0
+# testing on colmap poses
+scale_factor = near_original*100
+near = self.bounds.min()
+far = self.bounds.max()
+python train.py \
+   --dataset_name llff_non_ndc \
+   --use_disp \
+   --root_dir "/scratch/saksham/data/freiburg_small/" \
+   --N_importance 64 --img_wh 80 60 \
+   --num_epochs 60 --batch_size 1024 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 30 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "tum_desk_exp17" \
+   --gpus 1 --lamda 0
+
+Exp 17.1
+#testing on colmap poses
+scale_factor = bounds.max()/0.75
+near = 0, far = 1
+python train.py \
+   --dataset_name llff_non_ndc \
+   --root_dir "/scratch/saksham/data/freiburg_small/" \
+   --N_importance 64 --img_wh 80 60 \
+   --num_epochs 60 --batch_size 1024 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 30 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "tum_desk_exp17" \
+   --gpus 1 --lamda 0
+
+Exp 17.2 : large image sizes
+scale_factor = bounds.max()/0.75
+near = 0, far = 1
+python train.py \
+   --dataset_name llff_non_ndc \
+   --root_dir "/scratch/saksham/data/freiburg_small/" \
+   --N_importance 64 --img_wh 640 480 \
+   --num_epochs 60 --batch_size 1024 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 30 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "tum_desk_exp17" \
+   --gpus 0 --lamda 0
+
+Exp 18 : large image sizes
+TUM poses 
+scale_factor = 3.59949474527
+near = 0, far = 1
+python train.py \
+   --dataset_name tum \
+   --root_dir "/scratch/saksham/data/tum/" \
+   --N_importance 64 --img_wh 640 480 \
+   --num_epochs 60 --batch_size 4096 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 30 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "tum_desk_exp18" \
+   --gpus 0 --lamda 0
+
+
+Exp 19 : large image sizes
+TUM poses aligned with COLMAP poses
+scale_factor = 25.83046870477367
+near = 0, far = 1
+python train.py \
+   --dataset_name tum \
+   --root_dir "/scratch/saksham/data/tum/" \
+   --N_importance 64 --img_wh 640 480 \
+   --num_epochs 60 --batch_size 1024 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 30 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "tum_desk_exp19" \
+   --gpus 0 --lamda 0
