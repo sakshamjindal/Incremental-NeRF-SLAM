@@ -4,9 +4,11 @@ from .llff import *
 # from .llff_tum import *
 from .TUM import TUMDataset
 from .llff_non_ndc import *
+from .llff_TUM import *
 
 dataset_dict = {'blender': BlenderDataset,
                 'llff': llff.LLFFDataset,
                 'tum' : TUMDataset,
-                'llff_non_ndc' : llff_non_ndc.LLFFDataset
+                'llff_non_ndc' : llff_non_ndc.LLFFDataset,
+                'llff_TUM' : llff_TUM.LLFFDataset
                 }

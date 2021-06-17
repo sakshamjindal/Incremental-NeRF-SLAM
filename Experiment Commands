@@ -381,13 +381,63 @@ Exp 19 : large image sizes
 TUM poses aligned with COLMAP poses
 scale_factor = 25.83046870477367
 near = 0, far = 1
-python train.py \
+CUDA_VISIBLE_DEVICES=1 python train.py \
    --dataset_name tum \
    --root_dir "/scratch/saksham/data/tum/" \
    --N_importance 64 --img_wh 640 480 \
-   --num_epochs 60 --batch_size 1024 \
+   --num_epochs 60 --batch_size 2048 \
    --optimizer adam --lr 5e-4 \
     --start 0 --end 30 \
    --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
    --exp_name "tum_desk_exp19" \
    --gpus 0 --lamda 0
+
+
+Exp 20 
+# 20.0
+CUDA_VISIBLE_DEVICES=1 python train.py \
+   --dataset_name llff_TUM \
+   --root_dir "/scratch/saksham/data/freiburg_small/" \
+   --N_importance 64 --img_wh 80 60 \
+   --num_epochs 60 --batch_size 1024 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 30 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "tum_desk_exp20" \
+   --gpus 0 --lamda 0
+
+# 20.1
+CUDA_VISIBLE_DEVICES=1 python train.py \
+   --dataset_name llff_TUM \
+   --root_dir "/scratch/saksham/data/freiburg_small/" \
+   --N_importance 64 --img_wh 80 60 \
+   --num_epochs 60 --batch_size 1024 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 30 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "tum_desk_exp20" \
+   --gpus 0 --lamda 1
+
+CUDA_VISIBLE_DEVICES=1 python train.py \
+   --dataset_name llff_non_ndc \
+   --root_dir "/scratch/saksham/data/freiburg_small/" \
+   --N_importance 64 --img_wh 80 60 \
+   --num_epochs 60 --batch_size 1024 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 30 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "tum_desk_exp20" \
+   --gpus 0 --lamda 0
+
+
+# Exp 21: Repeat Experiment 20 at large image sizes
+CUDA_VISIBLE_DEVICES=1 python train.py \
+   --dataset_name llff_TUM \
+   --root_dir "/scratch/saksham/data/freiburg_small/" \
+   --N_importance 64 --img_wh 640 480 \
+   --num_epochs 60 --batch_size 4096 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 30 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "tum_desk_exp21" \
+   --gpus 0 --lamda 1

@@ -309,6 +309,8 @@ class TUMDataset(Dataset):
         
         elif self.split == 'val':
             print('val image index is', val_idx)
+            names = names.replace(' ','').split(',')
+            print('val img name is ', names[val_idx])
             self.val_idx = val_idx
 
         else: # for testing, create a parametric rendering path
