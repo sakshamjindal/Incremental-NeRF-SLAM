@@ -293,21 +293,21 @@ class LLFFDataset(Dataset):
                     continue
                 c2w = torch.FloatTensor(self.poses[i])
 
-
+                image_path = self.image_paths[i]
+                image_id = os.path.basename(image_path)
+                
+                try:
+                    depth_id = self.rgb_depth_mapping[image_id]
+                except:
+                    print(i, image_id)
+                    continue
+                
                 img = Image.open(image_path).convert('RGB')
                 img = img.resize(self.img_wh, Image.LANCZOS)
                 img = self.transform(img) # (3, h, w)
                 img = img.view(3, -1).permute(1, 0) # (h*w, 3) RGB
                 self.all_rgbs += [img]
 
-
-                image_path = self.image_paths[i]
-                image_id = os.path.basename(image_path)
-                try:
-                    depth_id = self.rgb_depth_mapping[image_id]
-                except:
-                    print(i, image_id)
-                    continue
                 depth_path = os.path.join((os.path.join(self.tum_path,"depth")),depth_id)
                 
                 depth = cv2.imread(depth_path, -1)
@@ -380,7 +380,8 @@ class LLFFDataset(Dataset):
             sample = {'rays': self.all_rays[idx],
                       'rgbs': self.all_rgbs[idx],
                       'depths': self.all_depths[idx],
-                      'masks' : self.all_masks[idx]}
+                      'masks' : self.all_masks[idx]
+                      }
 
         else:
             if self.split == 'val':

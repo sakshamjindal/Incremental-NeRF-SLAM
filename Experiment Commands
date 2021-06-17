@@ -449,6 +449,7 @@ CUDA_VISIBLE_DEVICES=1 python train.py \
 
 # Exp 21: Repeat Experiment 20 at large image sizes
 # 21.0 -  repreat of 20.1 at high res
+# 21.0 With Depth Loss
 CUDA_VISIBLE_DEVICES=1 python train.py \
    --dataset_name llff_TUM \
    --root_dir "/scratch/saksham/data/freiburg_small/" \
@@ -461,6 +462,7 @@ CUDA_VISIBLE_DEVICES=1 python train.py \
    --gpus 0 --lamda 1
 
 # 21.1 -  repeat of  20.0 at high res
+# 21.0 Without Depth Loss
 CUDA_VISIBLE_DEVICES=1 python train.py \
    --dataset_name llff_TUM \
    --root_dir "/scratch/saksham/data/freiburg_small/" \
