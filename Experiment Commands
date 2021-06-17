@@ -363,7 +363,7 @@ python train.py \
 
 Exp 18 : large image sizes
 TUM poses 
-scale_factor = 3.59949474527
+scale_factor = 3.59949474527 (How? -- Notion)
 near = 0, far = 1
 python train.py \
    --dataset_name tum \
@@ -379,7 +379,8 @@ python train.py \
 
 Exp 19 : large image sizes
 TUM poses aligned with COLMAP poses
-scale_factor = 25.83046870477367
+scale_factor = 25.83046870477367 
+(using experiment 17, colmap poses) : scale by bounds.max() = 25.. and Not bounds.max()/0.75
 near = 0, far = 1
 CUDA_VISIBLE_DEVICES=1 python train.py \
    --dataset_name tum \
@@ -393,8 +394,18 @@ CUDA_VISIBLE_DEVICES=1 python train.py \
    --gpus 0 --lamda 0
 
 
-Exp 20 
+# Exp 20
+Depth Map experiments with low resolution images
+and colmap poses : llff_tum :: colmap poses but depths from tum
+Pose Scaling: 
+Scaling the colmap poses by scale_factor = self.bounds.max()/0.75
+Depth Scaling:
+scale_tum_col = 8.669891269074654
+1) Scale depths from tum to colmap : depth = depth*scale_tum_col
+2) Scale scaled depths using colmap scale factor : depth = depth/scale_factor
+
 # 20.0
+# Benchmark experiment with llff_tum without depth loss
 CUDA_VISIBLE_DEVICES=1 python train.py \
    --dataset_name llff_TUM \
    --root_dir "/scratch/saksham/data/freiburg_small/" \
@@ -407,6 +418,8 @@ CUDA_VISIBLE_DEVICES=1 python train.py \
    --gpus 0 --lamda 0
 
 # 20.1
+# Benchmark experiment with llff_tum with depth loss
+Compare the above depth experiment 
 CUDA_VISIBLE_DEVICES=1 python train.py \
    --dataset_name llff_TUM \
    --root_dir "/scratch/saksham/data/freiburg_small/" \
@@ -418,6 +431,10 @@ CUDA_VISIBLE_DEVICES=1 python train.py \
    --exp_name "tum_desk_exp20" \
    --gpus 0 --lamda 1
 
+# 20.2
+# Both of the above experiments failed. There is some problem with poses
+# When adding depths some poses get removed and we can not add poses beyond
+# index number 30. Benchmark the experiment of llff_non_ndc (low resolution version of Exp 17)
 CUDA_VISIBLE_DEVICES=1 python train.py \
    --dataset_name llff_non_ndc \
    --root_dir "/scratch/saksham/data/freiburg_small/" \
@@ -431,6 +448,7 @@ CUDA_VISIBLE_DEVICES=1 python train.py \
 
 
 # Exp 21: Repeat Experiment 20 at large image sizes
+# 21.0 -  repreat of 20.1 at high res
 CUDA_VISIBLE_DEVICES=1 python train.py \
    --dataset_name llff_TUM \
    --root_dir "/scratch/saksham/data/freiburg_small/" \
@@ -441,3 +459,15 @@ CUDA_VISIBLE_DEVICES=1 python train.py \
    --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
    --exp_name "tum_desk_exp21" \
    --gpus 0 --lamda 1
+
+# 21.1 -  repeat of  20.0 at high res
+CUDA_VISIBLE_DEVICES=1 python train.py \
+   --dataset_name llff_TUM \
+   --root_dir "/scratch/saksham/data/freiburg_small/" \
+   --N_importance 64 --img_wh 640 480 \
+   --num_epochs 60 --batch_size 4096 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 30 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "tum_desk_exp21" \
+   --gpus 0 --lamda 0
