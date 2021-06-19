@@ -474,7 +474,7 @@ CUDA_VISIBLE_DEVICES=0 python train.py \
 
 # 21.2
 # NON-NDC COLMAP added just for comparison
-# ideally 21.0 should match but they are not.
+# ideally 21.0 and 17 should match but they are not.
 # I am getting better results with llff_non_ndc than llff_TUM
 CUDA_VISIBLE_DEVICES=1 python train.py \
    --dataset_name llff_non_ndc \
@@ -492,7 +492,7 @@ Exp 22 : large image sizes
 TUM poses with depth loss
 scale_factor = 3.59949474527 (How? -- Notion)
 near = 0, far = 1
-python train.py \
+CUDA_VISIBLE_DEVICES=0 python train.py \
    --dataset_name tum \
    --root_dir "/scratch/saksham/data/tum/" \
    --N_importance 64 --img_wh 640 480 \

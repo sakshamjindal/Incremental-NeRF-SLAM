@@ -221,7 +221,7 @@ class TUMDataset(Dataset):
         num_images = self.colors.shape[0]
         poses = poses.numpy() # (N_images, 3, 4) cam2world matrices
         
-        scale_pose = True
+        scale_pose = False
         if scale_pose:
             poses = scale_poses(poses)
 
@@ -243,7 +243,7 @@ class TUMDataset(Dataset):
         # near_original = np.percentile(depths[depths>0],0.1)
         # scale_factor = near_original*0.75 # 0.75 is the default parameter
         #                                   # the nearest depth is at 1/0.75=1.33
-        scale_factor = 25.83046870477367
+        scale_factor = 3.59949474527
         # depths /= scale_factor
         self.poses[..., 3] /= scale_factor
 
@@ -386,9 +386,9 @@ class TUMDataset(Dataset):
                 depth = cv2.resize(depth, (self.img_wh), interpolation = cv2.INTER_NEAREST)
                 mask = 1 - ((depth).astype('uint8'))==0        
                 mask = torch.Tensor(mask)
-                mask = mask.view(1, -1).permute(1,0)
+                mask = mask.view(-1)
                 depth = torch.Tensor(depth)
-                depth = depth.view(1, -1).permute(1,0)
+                depth = depth.view(-1)
                 sample['depths'] = depth
                 sample['masks'] = mask
 

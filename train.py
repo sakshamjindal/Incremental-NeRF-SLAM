@@ -175,9 +175,9 @@ class NeRFSystem(LightningModule):
             img = results[f'rgb_{typ}'].view(H, W, 3).permute(2, 0, 1).cpu() # (3, H, W)
             img_gt = rgbs.view(H, W, 3).permute(2, 0, 1).cpu() # (3, H, W)
             if self.hparams.lamda > 0:
-                depth_gt = visualize_depth(depths.view(H, W)) # (3, H, W)
+                depth_gt = visualize_depth(depths.view(H, W), resize = False) # (3, H, W)
 
-            depth = visualize_depth(results[f'depth_{typ}'].view(H, W), resize = True) # resize to (640,320)
+            depth = visualize_depth(results[f'depth_{typ}'].view(H, W), resize = False) # resize to (640,320)
             stack = torch.stack([img_gt, img]) # (2, 3, H, W)
             self.logger.experiment.add_images('val/GT_pred_image_depth',
                                             stack, self.current_epoch)
