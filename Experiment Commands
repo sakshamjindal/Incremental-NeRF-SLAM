@@ -432,9 +432,7 @@ CUDA_VISIBLE_DEVICES=1 python train.py \
    --gpus 0 --lamda 1
 
 # 20.2
-# Both of the above experiments failed. There is some problem with poses
-# When adding depths some poses get removed and we can not add poses beyond
-# index number 30. Benchmark the experiment of llff_non_ndc (low resolution version of Exp 17)
+# Benchmark the experiment of llff_non_ndc (low resolution version of Exp 17)
 CUDA_VISIBLE_DEVICES=1 python train.py \
    --dataset_name llff_non_ndc \
    --root_dir "/scratch/saksham/data/freiburg_small/" \
@@ -473,4 +471,39 @@ CUDA_VISIBLE_DEVICES=0 python train.py \
    --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
    --exp_name "tum_desk_exp21" \
    --gpus 0 --lamda 1
+
+# 21.2
+# NON-NDC COLMAP added just for comparison
+# ideally 21.0 should match but they are not.
+# I am getting better results with llff_non_ndc than llff_TUM
+CUDA_VISIBLE_DEVICES=1 python train.py \
+   --dataset_name llff_non_ndc \
+   --root_dir "/scratch/saksham/data/freiburg_small/" \
+   --N_importance 64 --img_wh 640 480 \
+   --num_epochs 60 --batch_size 4096 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 30 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "tum_desk_exp21-colmap" \
+   --gpus 0 --lamda 0
+
+
+
+Exp 22 : large image sizes
+TUM poses with depth loss
+scale_factor = 3.59949474527 (How? -- Notion)
+near = 0, far = 1
+python train.py \
+   --dataset_name tum \
+   --root_dir "/scratch/saksham/data/tum/" \
+   --N_importance 64 --img_wh 640 480 \
+   --num_epochs 60 --batch_size 4096 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 30 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "tum_desk_exp22" \
+   --gpus 0 --lamda 1
+
+
+
 

@@ -3,13 +3,13 @@ import numpy as np
 import cv2
 from PIL import Image
 
-def visualize_depth(depth, cmap=cv2.COLORMAP_JET, return_PIL = False, resize = True):
+def visualize_depth(depth, cmap=cv2.COLORMAP_JET, return_PIL = False, resize = False):
     """
     depth: (H, W)
     """
     x = depth.cpu().numpy()
     x = np.nan_to_num(x) # change nan to 0
-    mi = np.min(x[x>0]) # get minimum depth
+    mi = np.min(x) # get minimum depth
     ma = np.max(x)
     # mi = 0 # get minimum depth
     # ma = 1
