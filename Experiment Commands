@@ -488,7 +488,6 @@ CUDA_VISIBLE_DEVICES=1 python train.py \
    --gpus 0 --lamda 0
 
 
-
 Exp 22 : large image sizes
 TUM poses with depth loss
 scale_factor = 3.59949474527 (How? -- Notion)
@@ -503,7 +502,3 @@ python train.py \
    --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
    --exp_name "tum_desk_exp22" \
    --gpus 0 --lamda 1
-
-
-
-
