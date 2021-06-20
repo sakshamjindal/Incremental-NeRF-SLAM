@@ -492,6 +492,17 @@ Exp 22 : large image sizes
 TUM poses with depth loss
 scale_factor = 3.59949474527 (How? -- Notion)
 near = 0, far = 1
+CUDA_VISIBLE_DEVICES=1 python train.py \
+   --dataset_name tum \
+   --root_dir "/scratch/saksham/data/tum/" \
+   --N_importance 64 --img_wh 80 60 \
+   --num_epochs 60 --batch_size 1024 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 30 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "tum_desk_exp22" \
+   --gpus 0 --lamda 1
+
 CUDA_VISIBLE_DEVICES=0 python train.py \
    --dataset_name tum \
    --root_dir "/scratch/saksham/data/tum/" \
