@@ -244,6 +244,8 @@ class TUMDataset(Dataset):
         # scale_factor = near_original*0.75 # 0.75 is the default parameter
         #                                   # the nearest depth is at 1/0.75=1.33
         scale_factor = 3.59949474527
+        #scale_factor = 1
+        self.scale_factor = scale_factor
         # depths /= scale_factor
         self.poses[..., 3] /= scale_factor
 
@@ -279,6 +281,7 @@ class TUMDataset(Dataset):
                 mask = 1 - ((depth).astype('uint8'))==0        
                 mask = torch.Tensor(mask)
                 mask = mask.view(1, -1).permute(1,0)
+                depth = depth/scale_factor
                 depth = torch.Tensor(depth)
                 depth = depth.view(1, -1).permute(1,0)
                 self.all_depths += depth
@@ -387,6 +390,7 @@ class TUMDataset(Dataset):
                 mask = 1 - ((depth).astype('uint8'))==0        
                 mask = torch.Tensor(mask)
                 mask = mask.view(-1)
+                depth = depth/self.scale_factor
                 depth = torch.Tensor(depth)
                 depth = depth.view(-1)
                 sample['depths'] = depth
@@ -394,3 +398,4 @@ class TUMDataset(Dataset):
 
 
         return sample
+        
