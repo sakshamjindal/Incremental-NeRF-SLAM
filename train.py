@@ -33,10 +33,16 @@ class NeRFSystem(LightningModule):
         self.hparams = hparams
 
         if self.hparams.lamda > 0:
-            self.loss = [
-                loss_dict['color'](coef=1),
-                loss_dict['depth'](coef=1) 
-            ]
+            if self.hparams.depth_norm:
+                self.loss = [
+                    loss_dict['color'](coef=1),
+                    loss_dict['depth_norm'](coef=1) 
+                ]
+            else:
+                self.loss = [
+                    loss_dict['color'](coef=1),
+                    loss_dict['depth'](coef=1) 
+                ]
         else:
             self.loss = [loss_dict['color'](coef=1)]
 

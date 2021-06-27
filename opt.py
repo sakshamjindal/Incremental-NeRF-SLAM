@@ -29,9 +29,10 @@ def get_opts():
                         help='factor to perturb depth sampling points')
     parser.add_argument('--lamda', type=float, default=0.0,
                         help='factor for depth loss')
+    parser.add_argument('--depth_norm', default=False, action="store_true",
+                        help='use for normalizing depth loss')
     parser.add_argument('--noise_std', type=float, default=1.0,
-                        help='std dev of noise added to regularize sigma')
-        
+                        help='std dev of noise added to regularize sigma')  
     parser.add_argument('--batch_size', type=int, default=1024,
                         help='batch size')
     parser.add_argument('--chunk', type=int, default=32*1024,
