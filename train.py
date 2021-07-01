@@ -142,9 +142,13 @@ class NeRFSystem(LightningModule):
 
 
     def configure_optimizers(self):
-        self.optimizer = get_optimizer(self.hparams, self.model_pose)
-        scheduler = get_scheduler(self.hparams, self.optimizer)
-        
+        if self.hparams.freeze_nerf:
+            self.optimizer = get_optimizer(self.hparams, self.model_pose)
+            scheduler = get_scheduler(self.hparams, self.optimizer)
+        else:
+            self.optimizer = get_optimizer(self.hparams, [self.models, self.model_pose])
+            scheduler = get_scheduler(self.hparams, self.optimizer)
+            
         return [self.optimizer], [scheduler]
 
     def train_dataloader(self):
