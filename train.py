@@ -69,10 +69,11 @@ class NeRFSystem(LightningModule):
 
         self.nerf_coarse = NeRF()
         self.models = {'coarse': self.nerf_coarse}
-        self.models["coarse"].eval()
 
-        for param in self.models["coarse"].parameters():
-            param.requires_grad = False
+        if self.hparams.freeze_nerf:
+            self.models["coarse"].eval()
+            for param in self.models["coarse"].parameters():
+                param.requires_grad = False
 
         load_ckpt(self.nerf_coarse, hparams.weight_path, 'nerf_coarse')
 
@@ -81,10 +82,12 @@ class NeRFSystem(LightningModule):
         if hparams.N_importance > 0:
             self.nerf_fine = NeRF()
             self.models['fine'] = self.nerf_fine
-
-            self.models["fine"].eval()
-            for param in self.models["fine"].parameters():
-                param.requires_grad = False
+            
+            if self.hparams.freeze_nerf:
+                self.models["fine"].eval()
+                for param in self.models["fine"].parameters():
+                    param.requires_grad = False
+                    
             load_ckpt(self.nerf_fine, hparams.weight_path, 'nerf_fine')
 
         self._setup()
@@ -302,6 +305,7 @@ def main(hparams):
                             log_graph=False)
 
     trainer = Trainer(max_epochs=hparams.num_epochs,
+                      check_val_every_n_epoch = hparams.val_frequency,
                       checkpoint_callback=checkpoint_callback,
                       logger=logger,
                       weights_summary=None,

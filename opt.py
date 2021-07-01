@@ -18,13 +18,17 @@ def get_opts():
     parser.add_argument('--end', type=int, default=None, 
                         help='number of the ending frame')
     parser.add_argument('--period', type=int, default=1, 
-                        help='periodicity to select the frame')                  
+                        help='periodicity to select the frame') 
+    parser.add_argument('--val_frequency', type=int, default=1, 
+                        help='periodicity to select the frame') 
     parser.add_argument('--N_samples', type=int, default=64,
                         help='number of coarse samples')
     parser.add_argument('--N_importance', type=int, default=128,
                         help='number of additional fine samples')
     parser.add_argument('--use_disp', default=False, action="store_true",
                         help='use disparity depth sampling')
+    parser.add_argument('--freeze_nerf', default=False, action="store_true",
+                        help='freeze nerf while optimizing for poses')
     parser.add_argument('--perturb', type=float, default=1.0,
                         help='factor to perturb depth sampling points')
     parser.add_argument('--lamda', type=float, default=0.0,

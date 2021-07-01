@@ -1,6 +1,10 @@
+# Experiment 1  - Freeze Nerf
+## Exp 1.0 - pose initialose at pose - 5
+
 CUDA_VISIBLE_DEVICES=0 python train.py \
    --dataset_name tum_inv \
    --root_dir "/scratch/saksham/data/tum/" \
+   --freeze_nerf \
    --N_importance 64 --img_wh 640 480 \
    --num_epochs 1000 --batch_size 4096  \
    --optimizer adam --lr 5e-4 \
@@ -10,11 +14,28 @@ CUDA_VISIBLE_DEVICES=0 python train.py \
    --gpus 0 --lamda 0  \
    --weight_path "ckpts/tum_desk_exp18/epoch=14.ckpt"
 
+## Exp 1.1 - pose initialose at pose - 2
 CUDA_VISIBLE_DEVICES=1 python train.py \
+   --dataset_name tum_inv \
+   --root_dir "/scratch/saksham/data/tum/" \
+   --freeze_nerf \
+   --N_importance 64 --img_wh 640 480 \
+   --num_epochs 1000 --batch_size 4096  \
+   --optimizer adam --lr 5e-4 \
+   --start 0 --end 30  \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "inv"  \
+   --gpus 0 --lamda 0  \
+   --weight_path "ckpts/tum_desk_exp18/epoch=14.ckpt"
+   
+# Experiment 2 Unfreeze Nerf and optimise for original camera pose
+
+CUDA_VISIBLE_DEVICES=0 python train.py \
    --dataset_name tum_inv \
    --root_dir "/scratch/saksham/data/tum/" \
    --N_importance 64 --img_wh 640 480 \
    --num_epochs 1000 --batch_size 4096  \
+   --val_frequency 10 \
    --optimizer adam --lr 5e-4 \
    --start 0 --end 30  \
    --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \

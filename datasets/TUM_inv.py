@@ -284,7 +284,7 @@ class TUMDataset(Dataset):
 
             if i in self.poses_to_train:
 
-                c2w = torch.FloatTensor(self.poses[i-2]).view(1, 4, 4) # (4, 4)
+                c2w = torch.FloatTensor(self.poses[i]).view(1, 4, 4) # (4, 4)
                 img = self.colors[i]
                 depth = self.depths[i]            
 
