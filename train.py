@@ -1,16 +1,20 @@
+from models.poses import LearnPose
 import os
 
 from pytorch_lightning import loggers
 from opt import get_opts
 import torch
 from collections import defaultdict
+from gradslam.datasets.tum import TUM
 
 from torch.utils.data import DataLoader
 from datasets import dataset_dict
+from datasets.ray_utils import *
 
 # models
 from models.nerf import *
 from models.rendering import *
+from models.poses import *
 
 # optimizer, scheduler, visualization
 from utils import *
@@ -30,7 +34,18 @@ from pytorch_lightning.loggers import TestTubeLogger
 class NeRFSystem(LightningModule):
     def __init__(self, hparams):
         super(NeRFSystem, self).__init__()
+
         self.hparams = hparams
+        self.root_dir = self.hparams.root_dir
+        self.sequences = "sequences.txt"
+        self.img_wh = tuple(self.hparams.img_wh)
+        self.train_rand_rows = 64
+        self.train_rand_cols = 64
+        self.near = 0.05
+        self.far = 1
+        self.W, self.H = tuple(self.hparams.img_wh)
+
+        self.poses_to_train = [29]
 
         if self.hparams.lamda > 0:
             if self.hparams.depth_norm:
@@ -48,17 +63,31 @@ class NeRFSystem(LightningModule):
 
         self.embedding_xyz = Embedding(3, 10)
         self.embedding_dir = Embedding(3, 4)
+
         self.embeddings = {'xyz': self.embedding_xyz,
                            'dir': self.embedding_dir}
 
         self.nerf_coarse = NeRF()
         self.models = {'coarse': self.nerf_coarse}
+        self.models["coarse"].eval()
+
+        for param in self.models["coarse"].parameters():
+            param.requires_grad = False
+
         load_ckpt(self.nerf_coarse, hparams.weight_path, 'nerf_coarse')
+
+        self.model_pose = LearnPose(num_cams = 1, learn_R = True, learn_t = True)
 
         if hparams.N_importance > 0:
             self.nerf_fine = NeRF()
             self.models['fine'] = self.nerf_fine
+
+            self.models["fine"].eval()
+            for param in self.models["fine"].parameters():
+                param.requires_grad = False
             load_ckpt(self.nerf_fine, hparams.weight_path, 'nerf_fine')
+
+        self._setup()
 
     def get_progress_bar_dict(self):
         items = super().get_progress_bar_dict()
@@ -89,31 +118,37 @@ class NeRFSystem(LightningModule):
             results[k] = torch.cat(v, 0)
         return results
 
-    def setup(self, stage):
+    def _setup(self):
         
         dataset = dataset_dict[self.hparams.dataset_name]
         kwargs = {'root_dir': self.hparams.root_dir,
                   'img_wh': tuple(self.hparams.img_wh),
                   'start': self.hparams.start,
                   'end' : self.hparams.end,
-                  'period' : self.hparams.period
+                  'period' : self.hparams.period,
+                  'poses_to_train' : self.poses_to_train
                   }
-        if self.hparams.dataset_name == 'llff':
-            kwargs['spheric_poses'] = self.hparams.spheric_poses
-            kwargs['val_num'] = len(self.hparams.gpus)
+
         self.train_dataset = dataset(split='train', **kwargs)
         self.val_dataset = dataset(split='val', **kwargs)
 
+        self.all_poses = self.train_dataset.all_poses
+        self.directions = self.train_dataset.directions
+        num_poses_to_train = len(self.poses_to_train)
+        self.model_pose = LearnPose(num_poses_to_train, learn_R=True, learn_t=True, init_c2w = self.all_poses)
+
+
     def configure_optimizers(self):
-        self.optimizer = get_optimizer(self.hparams, self.models)
+        self.optimizer = get_optimizer(self.hparams, self.model_pose)
         scheduler = get_scheduler(self.hparams, self.optimizer)
+        
         return [self.optimizer], [scheduler]
 
     def train_dataloader(self):
         return DataLoader(self.train_dataset,
-                          shuffle=True,
+                          shuffle=False,
                           num_workers=4,
-                          batch_size=self.hparams.batch_size,
+                          batch_size=1,
                           pin_memory=True)
 
     def val_dataloader(self):
@@ -124,11 +159,28 @@ class NeRFSystem(LightningModule):
                           pin_memory=True)
     
     def training_step(self, batch, batch_nb):
-        rays, rgbs = batch['rays'], batch['rgbs']
+
+        idx = batch['idx'].detach().cpu().numpy()[0]
+        img = batch['rgbs']
+        batch_size = img.shape[0]
+        img = img[0]
 
         if self.hparams.lamda > 0:
             masks = batch['masks']
             depths = batch['depths']
+
+        c2w = self.model_pose(idx)
+        c2w = c2w[:3, :4] 
+
+        # sample pixel on an image and their rays for training
+        r_id = torch.randperm(self.H, device = c2w.device)[:self.train_rand_rows]  # (N_select_rows)
+        c_id = torch.randperm(self.W, device = c2w.device)[:self.train_rand_cols]  # (N_select_cols)
+        img = img[r_id][:, c_id]
+        ray_selected_cam = self.directions[r_id][:, c_id].to(c2w.device)  # (N_select_rows, N_select_cols, 3)
+        rays_o, rays_d = get_rays(ray_selected_cam, c2w) # both (h*w, 3)
+        rays = torch.cat([rays_o, rays_d, self.near*torch.ones_like(rays_o[:, :1]), self.far*torch.ones_like(rays_o[:, :1])], dim = 1)
+
+        rgbs = img.view(-1, 3)
 
         results = self(rays)
         rgb_results = {k: v for k, v in results.items() if 'rgb' in k}
@@ -157,13 +209,29 @@ class NeRFSystem(LightningModule):
         return loss
 
     def validation_step(self, batch, batch_nb):
-        rays, rgbs = batch['rays'], batch['rgbs'] # (h*w,8), (h*w, 3)
+
+        idx = batch['idx'].detach().cpu().numpy()[0]
+        img = batch['rgbs']
+        img = img[0]
+
+        if self.hparams.lamda > 0:
+            masks = batch['masks']
+            depths = batch['depths']
+
+        c2w = self.model_pose(idx)
+        c2w = c2w[:3, :4] 
+
+        # sample pixel on an image and their rays for validations
+        ray_selected_cam = self.directions.to(c2w.device) # (H, W, 3)
+        rays_o, rays_d = get_rays(ray_selected_cam, c2w) # both (H*W, 3)
+        rays = torch.cat([rays_o, rays_d, self.near*torch.ones_like(rays_o[:, :1]), self.far*torch.ones_like(rays_o[:, :1])], dim = 1)
+        
         if self.hparams.lamda > 0:
             depths = batch['depths'] #(h*w)
             masks = batch['masks']
 
-        rays = rays.squeeze() # (H*W, 3)
-        rgbs = rgbs.squeeze() # (H*W, 3)
+        # rays = rays.squeeze() # (H*W, 3)
+        rgbs = img.view(-1, 3) # (H*W, 3)
         results = self(rays)
         rgb_results = {k: v for k, v in results.items() if 'rgb' in k}
         if self.hparams.lamda > 0:
@@ -221,13 +289,13 @@ class NeRFSystem(LightningModule):
 def main(hparams):
     system = NeRFSystem(hparams)
     checkpoint_callback = \
-        ModelCheckpoint(filepath=os.path.join(f'ckpts/{hparams.exp_name}',
+        ModelCheckpoint(filepath=os.path.join(f'inv_ckpts/{hparams.exp_name}',
                                                '{epoch:d}'),
                         monitor='val/psnr',
                         mode='max',
                         save_top_k=5)
 
-    logger = TestTubeLogger(save_dir="logs",
+    logger = TestTubeLogger(save_dir="inv_logs",
                             name=hparams.exp_name,
                             debug=False,
                             create_git_tag=False,
@@ -235,7 +303,6 @@ def main(hparams):
 
     trainer = Trainer(max_epochs=hparams.num_epochs,
                       checkpoint_callback=checkpoint_callback,
-                      resume_from_checkpoint=hparams.ckpt_path,
                       logger=logger,
                       weights_summary=None,
                       progress_bar_refresh_rate=1,

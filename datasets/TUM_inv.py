@@ -172,6 +172,26 @@ def scale_poses(poses):
 
     return poses
 
+def convert3x4_4x4(input):
+    """
+    :param input:  (N, 3, 4) or (3, 4) torch or np
+    :return:       (N, 4, 4) or (4, 4) torch or np
+    """
+    if torch.is_tensor(input):
+        if len(input.shape) == 3:
+            output = torch.cat([input, torch.zeros_like(input[:, 0:1])], dim=1)  # (N, 4, 4)
+            output[:, 3, 3] = 1.0
+        else:
+            output = torch.cat([input, torch.tensor([[0,0,0,1]], dtype=input.dtype, device=input.device)], dim=0)  # (4, 4)
+    else:
+        if len(input.shape) == 3:
+            output = np.concatenate([input, np.zeros_like(input[:, 0:1])], axis=1)  # (N, 4, 4)
+            output[:, 3, 3] = 1.0
+        else:
+            output = np.concatenate([input, np.array([[0,0,0,1]], dtype=input.dtype)], axis=0)  # (4, 4)
+            output[3, 3] = 1.0
+    return output
+
 
 class TUMDataset(Dataset):
     def __init__(self, 
@@ -183,7 +203,7 @@ class TUMDataset(Dataset):
         start: Optional[int] = None,
         period: Optional[int] = 1,
         end: Optional[int] = None,
-        val_num=1
+        poses_to_train = []
     ):
         """
         spheric_poses: whether the images are taken in a spheric inward-facing manner
@@ -198,10 +218,10 @@ class TUMDataset(Dataset):
         self.split = split
         self.img_wh = img_wh
         self.spheric_poses = spheric_poses
-        self.val_num = max(1, val_num) # at least 1
         self.start = start
         self.end = end
         self.period = period
+        self.poses_to_train = poses_to_train
         self.define_transforms()
 
         self.read_meta()
@@ -238,11 +258,7 @@ class TUMDataset(Dataset):
         val_idx = np.argmin(distances_from_center) # choose val image as the closest to
                                                    # center image
 
-        # Step 3: correct scale so that the nearest depth is at a little more than 1.0
-        # See https://github.com/bmild/nerf/issues/34
-        # near_original = np.percentile(depths[depths>0],0.1)
-        # scale_factor = near_original*0.75 # 0.75 is the default parameter
-        #                                   # the nearest depth is at 1/0.75=1.33
+        # Step 3: correct scale so that the max depth is little closer (less than) 1.0
         scale_factor = 3.59949474527
         #scale_factor = 1
         self.scale_factor = scale_factor
@@ -252,151 +268,94 @@ class TUMDataset(Dataset):
         # ray directions for all pixels, same for all images (same H, W, focal)
         self.directions = \
             get_ray_directions(self.img_wh[1], self.img_wh[0], self.focal) # (H, W, 3)
+
+        # convert from 3x4 form to 4x4 form
+        self.poses = convert3x4_4x4(self.poses)  # (N, 4, 4)
+
             
-        if self.split == 'train': # create buffer of all rays and rgb data
-                                  # use first N_images-1 to train, the LAST is val
-            self.all_rays = []
-            self.all_rgbs = []
-            self.all_depths = []
-            self.all_masks = []
-            for i in range(num_images):
-                if i == val_idx: # exclude the val image
-                    continue
-                c2w = torch.FloatTensor(self.poses[i])
+        # if self.split == 'train': # create buffer of all rays and rgb data
+        #                           # use first N_images-1 to train, the LAST is val
+        self.all_rgbs = []
+        self.all_poses = []
+        self.all_depths = []
+        self.all_masks = []
+
+        for i in range(num_images):
+
+            if i in self.poses_to_train:
+
+                c2w = torch.FloatTensor(self.poses[i-2]).view(1, 4, 4) # (4, 4)
                 img = self.colors[i]
                 depth = self.depths[i]            
 
                 img = Image.fromarray(img.numpy().astype('uint8')).convert('RGB')
-                # assert img.size[1]*self.img_wh[0] == img.size[0]*self.img_wh[1], \
-                #     f'''{image_path} has different aspect ratio than img_wh, 
-                #         please check your data!'''
                 img = img.resize(self.img_wh, Image.LANCZOS)
                 img = self.transform(img) # (3, h, w)
-                img = img.view(3, -1).permute(1, 0) # (h*w, 3) RGB
-                self.all_rgbs += [img]
+                img = img.permute(1, 2, 0) # (h, w, 3) RGB
+                self.all_rgbs.append(img)
+                self.all_poses.append(c2w)
 
                 depth = depth.squeeze(-1).numpy()
-                import cv2
                 depth = cv2.resize(depth, (self.img_wh), interpolation = cv2.INTER_NEAREST)
                 mask = 1 - ((depth).astype('uint8'))==0        
                 mask = torch.Tensor(mask)
-                mask = mask.view(1, -1).permute(1,0)
+                mask = mask.view(1, self.img_wh[1], self.img_wh[0]) # (h, w, 1)
                 depth = depth/scale_factor
                 depth = torch.Tensor(depth)
-                depth = depth.view(1, -1).permute(1,0)
-                self.all_depths += depth
-                self.all_masks += mask
+                depth = depth.view(1, self.img_wh[1], self.img_wh[0]) # h, w, 1)
 
-                
-                rays_o, rays_d = get_rays(self.directions, c2w) # both (h*w, 3)
-                if not self.spheric_poses:
-                    near, far = 0.05, 1
-                    # rays_o, rays_d = get_ndc_rays(self.img_wh[1], self.img_wh[0],
-                    #                               self.focal, 1.0, rays_o, rays_d)
-                                     # near plane is always at 1.0
-                                     # near and far in NDC are always 0 and 1
-                                     # See https://github.com/bmild/nerf/issues/34
-                else:
-                    near = self.bounds.min()
-                    far = min(8 * near, self.bounds.max()) # focus on central object only
+                self.all_depths.append(depth)
+                self.all_masks.append(mask)
 
-                self.all_rays += [torch.cat([rays_o, rays_d, 
-                                             near*torch.ones_like(rays_o[:, :1]),
-                                             far*torch.ones_like(rays_o[:, :1])],
-                                             1)] # (h*w, 8)
-                                 
-            self.all_rays = torch.cat(self.all_rays, 0) # ((N_images-1)*h*w, 8)
-            self.all_rgbs = torch.cat(self.all_rgbs, 0) # ((N_images-1)*h*w, 3)
-            self.all_depths = torch.cat(self.all_depths, 0) # ((N_image-1), 1)
-            self.all_masks = torch.cat(self.all_masks, 0)
+
+        self.all_poses = torch.cat(self.all_poses, dim = 0)
+        assert len(self.all_rgbs) > 0 and len(self.all_poses) > 0 and len(self.all_depths) > 0 and len(self.all_masks) > 0
         
-        elif self.split == 'val':
-            print('val image index is', val_idx)
-            names = names.replace(' ','').split(',')
-            print('val img name is ', names[val_idx])
-            self.val_idx = val_idx
+        #assert len(self.poses_to_train) > 0
+        self.val_idx = [self.poses_to_train[-1]]
+       
 
-        else: # for testing, create a parametric rendering path
-            if self.split.endswith('train'): # test on training set
-                self.poses_test = self.poses
-            elif not self.spheric_poses:
-                focus_depth = 3.5 # hardcoded, this is numerically close to the formula
-                                  # given in the original repo. Mathematically if near=1
-                                  # and far=infinity, then this number will converge to 4
-                radii = np.percentile(np.abs(self.poses[..., 3]), 90, axis=0)
-                self.poses_test = create_spiral_poses(radii, focus_depth)
-            else:
-                radius = 1.1 * depths[depths>0].min()
-                self.poses_test = create_spheric_poses(radius)
+        # elif self.split == 'val':
+        #     assert len(self.poses_to_train) > 0
+        #     self.val_idx = [self.poses_to_train[-1]]
+
+        # else: # for testing, create a parametric rendering path
+        #     raise ValueError("mode should be either train or val")
 
     def define_transforms(self):
         self.transform = T.ToTensor()
 
     def __len__(self):
         if self.split == 'train':
-            return len(self.all_rays)
+            return len(self.all_rgbs)
         if self.split == 'val':
-            return self.val_num
-        if self.split == 'test_train':
-            return len(self.poses)
-        return len(self.poses_test)
+            return 1
 
     def __getitem__(self, idx):
+        
         if self.split == 'train': # use data in the buffers
-            sample = {'rays': self.all_rays[idx],
-                      'rgbs': self.all_rgbs[idx],
-                      'depths' : self.all_depths[idx],
-                      'masks': self.all_masks[idx],
-                      'poses' : self.poses}
+            sample = {
+                'idx' : idx,
+                'poses': self.all_poses[idx],
+                'rgbs': self.all_rgbs[idx],
+                'depths' : self.all_depths[idx],
+                'masks': self.all_masks[idx]
+            }
 
         else:
             if self.split == 'val':
-                c2w = torch.FloatTensor(self.poses[self.val_idx])
-            elif self.split == 'test_train':
-                c2w = torch.FloatTensor(self.poses[idx])
+                val_idx = self.val_idx[idx]
+                positional_index = self.poses_to_train.index(val_idx)
+
+                return {
+                    'idx' : positional_index,
+                    'poses': self.all_poses[positional_index],
+                    'rgbs': self.all_rgbs[positional_index],
+                    'depths' : self.all_depths[positional_index],
+                    'masks': self.all_masks[positional_index]
+                }
             else:
-                c2w = torch.FloatTensor(self.poses_test[idx])
-
-            rays_o, rays_d = get_rays(self.directions, c2w)
-            if not self.spheric_poses:
-                near, far = 0.05, 1
-                # rays_o, rays_d = get_ndc_rays(self.img_wh[1], self.img_wh[0],
-                #                               self.focal, 1.0, rays_o, rays_d)
-            else:
-                near = self.bounds.min()
-                far = min(8 * near, self.bounds.max())
-
-            rays = torch.cat([rays_o, rays_d, 
-                              near*torch.ones_like(rays_o[:, :1]),
-                              far*torch.ones_like(rays_o[:, :1])],
-                              1) # (h*w, 8)
-
-            sample = {'rays': rays,
-                      'c2w': c2w}
-
-            if self.split in ['val', 'test_train']:
-                if self.split == 'val':
-                    idx = self.val_idx
-                
-                img = self.colors[idx]          
-                img = Image.fromarray(img.numpy().astype('uint8')).convert('RGB')
-                img = img.resize(self.img_wh, Image.LANCZOS)
-                img = self.transform(img) # (3, h, w)
-                img = img.view(3, -1).permute(1, 0) # (h*w, 3)
-                sample['rgbs'] = img
-
-                depth = self.depths[idx]
-                depth = depth.squeeze(-1).numpy()
-                depth = cv2.resize(depth, (self.img_wh), interpolation = cv2.INTER_NEAREST)
-                mask = 1 - ((depth).astype('uint8'))==0        
-                mask = torch.Tensor(mask)
-                mask = mask.view(-1)
-                depth = depth/self.scale_factor
-                depth = torch.Tensor(depth)
-                depth = depth.view(-1)
-                sample['depths'] = depth
-                sample['masks'] = mask
-
+                raise ValueError("split of the dataset should be either train or val")
 
         return sample
         

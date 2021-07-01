@@ -555,3 +555,16 @@ CUDA_VISIBLE_DEVICES=1 python train.py \
    --exp_name "tum_desk_exp23" \
    --depth_norm \
    --gpus 0 --lamda 1 
+
+##################
+CUDA_VISIBLE_DEVICES=1 python train.py \
+   --dataset_name tum_inv \
+   --root_dir "/scratch/saksham/data/tum/" \
+   --N_importance 64 --img_wh 640 480 \
+   --num_epochs 60 --batch_size 4096 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 30 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "invert_tum_test" \
+   --gpus 0 --lamda 0 \
+   --ckpt_path "ckpts/tum_desk_exp18/epoch=14.ckpt"

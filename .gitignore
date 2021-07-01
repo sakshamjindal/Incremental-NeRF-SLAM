@@ -1,5 +1,7 @@
 .vscode/
 logs/
+inv_ckpts/
+inv_logs/
 ckpts/
 results/*/*
 *.plys
