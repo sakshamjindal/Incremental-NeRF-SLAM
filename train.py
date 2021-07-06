@@ -25,6 +25,10 @@ from losses import loss_dict
 # metrics
 from metrics import *
 
+#lietorch
+from lietorch import SO3, SE3, Sim3
+print("import succesful")
+
 # pytorch-lightning
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning import LightningModule, Trainer
@@ -171,13 +175,14 @@ class NeRFSystem(LightningModule):
         img = batch['rgbs']
         batch_size = img.shape[0]
         img = img[0]
+        #print("posse:{}".format(SE3(self.all_poses).data))
 
         if self.hparams.lamda > 0:
             masks = batch['masks']
             depths = batch['depths']
 
         c2w = self.model_pose(idx)
-        c2w = c2w[:3, :4] 
+        c2w = c2w[:3, :4]
 
         # sample pixel on an image and their rays for training
         r_id = torch.randperm(self.H, device = c2w.device)[:self.train_rand_rows]  # (N_select_rows)
