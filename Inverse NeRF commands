@@ -42,3 +42,19 @@ CUDA_VISIBLE_DEVICES=0 python train.py \
    --exp_name "inv"  \
    --gpus 0 --lamda 0  \
    --weight_path "ckpts/tum_desk_exp18/epoch=14.ckpt"
+   
+   
+   #siren ecperiment with low res images
+   
+   python train.py \
+   --dataset_name tum_inv \
+   --root_dir "/scratch/saksham/data/tum/" \
+   --freeze_nerf \
+   --N_importance 64 --img_wh 80 60 \
+   --num_epochs 1000 --batch_size 4096  \
+   --optimizer adam --lr 5e-4 \
+   --start 0 --end 30  \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "inv_siren"  \
+   --gpus 0 --lamda 0  \
+   --weight_path "ckpts/tum_desk_exp22_siren/epoch=57.ckpt"
