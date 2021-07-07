@@ -77,8 +77,6 @@ class NeRFSystem(LightningModule):
 
         load_ckpt(self.nerf_coarse, hparams.weight_path, 'nerf_coarse')
 
-        self.model_pose = LearnPose(num_cams = 1, learn_R = True, learn_t = True)
-
         if hparams.N_importance > 0:
             self.nerf_fine = NeRF()
             self.models['fine'] = self.nerf_fine
@@ -138,7 +136,12 @@ class NeRFSystem(LightningModule):
         self.all_poses = self.train_dataset.all_poses
         self.directions = self.train_dataset.directions
         num_poses_to_train = len(self.poses_to_train)
-        self.model_pose = LearnPose(num_poses_to_train, learn_R=True, learn_t=True, init_c2w = self.all_poses)
+        
+        if self.hparams.pose_optimization:
+            self.model_pose = LearnPose(num_poses_to_train, learn_R=True, learn_t=True, init_c2w = self.all_poses)
+        else:
+            self.model_pose = LearnPose(num_poses_to_train, learn_R=False, learn_t=False, init_c2w = self.all_poses)
+            self.model_pose.eval()
 
 
     def configure_optimizers(self):
@@ -225,7 +228,7 @@ class NeRFSystem(LightningModule):
             masks = batch['masks']
             depths = batch['depths']
 
-        c2w = self.model_pose(idx)
+        c2w = self.model_pose(idx, stage="val")
         c2w = c2w[:3, :4] 
 
         # sample pixel on an image and their rays for validations
