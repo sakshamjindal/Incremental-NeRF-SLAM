@@ -24,7 +24,7 @@ CUDA_VISIBLE_DEVICES=1 python train.py \
    --optimizer adam --lr 5e-4 \
    --start 0 --end 30  \
    --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
-   --exp_name "inv"  \
+   --exp_name "inv_lietorch"  \
    --gpus 0 --lamda 0  \
    --weight_path "ckpts/tum_desk_exp18/epoch=14.ckpt"
    
