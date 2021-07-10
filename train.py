@@ -46,7 +46,7 @@ class NeRFSystem(LightningModule):
         self.far = 1
         self.W, self.H = tuple(self.hparams.img_wh)
 
-        self.poses_to_train = [29]
+        self.poses_to_train = self.hparams.poses_to_train
 
         if self.hparams.lamda > 0:
             if self.hparams.depth_norm:

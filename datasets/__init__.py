@@ -2,10 +2,10 @@ from .blender import BlenderDataset
 from .llff import *
 # from .llff_2 import *
 # from .llff_tum import *
-from .TUM import TUMDataset
 from .llff_non_ndc import *
 from .llff_TUM import *
 from .TUM_inv import *
+from .TUM import TUMDataset
 
 dataset_dict = {'blender': BlenderDataset,
                 'llff': llff.LLFFDataset,

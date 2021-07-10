@@ -31,6 +31,8 @@ def get_opts():
                         help='freeze nerf while optimizing for poses')
     parser.add_argument('--pose_optimization', default=False, action="store_true",
                         help='enable pose optimization')
+    parser.add_argument('--poses_to_train', nargs="+", type = int, default=[29],
+                        help='number of gpus')
     parser.add_argument('--perturb', type=float, default=1.0,
                         help='factor to perturb depth sampling points')
     parser.add_argument('--lamda', type=float, default=0.0,
