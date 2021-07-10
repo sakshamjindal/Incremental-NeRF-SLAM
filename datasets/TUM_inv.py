@@ -299,10 +299,10 @@ class TUMDataset(Dataset):
                 depth = cv2.resize(depth, (self.img_wh), interpolation = cv2.INTER_NEAREST)
                 mask = 1 - ((depth).astype('uint8'))==0        
                 mask = torch.Tensor(mask)
-                mask = mask.view(1, self.img_wh[1], self.img_wh[0]) # (h, w, 1)
+                mask = mask.view(self.img_wh[1], self.img_wh[0], 1) # (h, w, 1)
                 depth = depth/scale_factor
                 depth = torch.Tensor(depth)
-                depth = depth.view(1, self.img_wh[1], self.img_wh[0]) # h, w, 1)
+                depth = depth.view(self.img_wh[1], self.img_wh[0], 1) # h, w, 1)
 
                 self.all_depths.append(depth)
                 self.all_masks.append(mask)

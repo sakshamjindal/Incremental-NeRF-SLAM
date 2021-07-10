@@ -1,3 +1,4 @@
+from kornia.geometry.epipolar.projection import depth
 from models.poses import LearnPose
 import os
 
@@ -176,8 +177,8 @@ class NeRFSystem(LightningModule):
         img = img[0]
 
         if self.hparams.lamda > 0:
-            masks = batch['masks']
-            depths = batch['depths']
+            masks = batch['masks'][0]
+            depths = batch['depths'][0]
 
         c2w = self.model_pose(idx)
         c2w = c2w[:3, :4] 
@@ -186,16 +187,21 @@ class NeRFSystem(LightningModule):
         r_id = torch.randperm(self.H, device = c2w.device)[:self.train_rand_rows]  # (N_select_rows)
         c_id = torch.randperm(self.W, device = c2w.device)[:self.train_rand_cols]  # (N_select_cols)
         img = img[r_id][:, c_id]
+        depths = depths[r_id][:, c_id]
+        masks = masks[r_id][:, c_id]
         ray_selected_cam = self.directions[r_id][:, c_id].to(c2w.device)  # (N_select_rows, N_select_cols, 3)
         rays_o, rays_d = get_rays(ray_selected_cam, c2w) # both (h*w, 3)
         rays = torch.cat([rays_o, rays_d, self.near*torch.ones_like(rays_o[:, :1]), self.far*torch.ones_like(rays_o[:, :1])], dim = 1)
 
+        # reshaping for calculating losses
         rgbs = img.view(-1, 3)
+        depths = depths.view(-1)
+        masks = masks.view(-1)
 
         results = self(rays)
         rgb_results = {k: v for k, v in results.items() if 'rgb' in k}
         loss_rgb = self.loss[0](rgb_results, rgbs)
-        
+
         if self.hparams.lamda > 0:
             depth_results = {k: v for k, v in results.items() if 'depth' in k}
             loss_depth = self.loss[1](depth_results, depths, masks)
@@ -225,8 +231,8 @@ class NeRFSystem(LightningModule):
         img = img[0]
 
         if self.hparams.lamda > 0:
-            masks = batch['masks']
-            depths = batch['depths']
+            masks = batch['masks'][0]
+            depths = batch['depths'][0]
 
         c2w = self.model_pose(idx, stage="val")
         c2w = c2w[:3, :4] 
@@ -235,15 +241,16 @@ class NeRFSystem(LightningModule):
         ray_selected_cam = self.directions.to(c2w.device) # (H, W, 3)
         rays_o, rays_d = get_rays(ray_selected_cam, c2w) # both (H*W, 3)
         rays = torch.cat([rays_o, rays_d, self.near*torch.ones_like(rays_o[:, :1]), self.far*torch.ones_like(rays_o[:, :1])], dim = 1)
-        
-        if self.hparams.lamda > 0:
-            depths = batch['depths'] #(h*w)
-            masks = batch['masks']
 
         # rays = rays.squeeze() # (H*W, 3)
         rgbs = img.view(-1, 3) # (H*W, 3)
+        rgbs = img.view(-1, 3)
+        depths = depths.view(-1)
+        masks = masks.view(-1)
+
         results = self(rays)
         rgb_results = {k: v for k, v in results.items() if 'rgb' in k}
+        
         if self.hparams.lamda > 0:
             depth_results  = {k: v for k, v in results.items() if 'depth' in k}
 
