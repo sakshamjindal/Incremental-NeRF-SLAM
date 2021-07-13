@@ -16,6 +16,8 @@ class LearnPose(nn.Module):
         super(LearnPose, self).__init__()
         self.num_cams = num_cams
         self.init_c2w = None
+        self.learn_R = learn_R
+        self.learn_t = learn_t
         if init_c2w is not None:
             self.init_c2w = nn.Parameter(init_c2w, requires_grad=False)
 
@@ -24,18 +26,31 @@ class LearnPose(nn.Module):
 #         self.v = nn.Parameter(torch.tensor([[0., 0., 1., 0., 0., 0.]],device='cuda'),requires_grad=learn_R)
 #         print("v_Deivce",self.v.device)
 
-    def forward(self, cam_id):
+# <<<<<<< HEAD
+    def forward(self, cam_id, stage="train"):
         r = self.r[cam_id]  # (3, ) axis-angle
         t = self.t[cam_id]  # (3, )
         c2w = make_c2w(r, t)  # (4, 4)
 #         temp = SE3.exp(self.v)
 #         print("posse", temp)#format((temp[:,None].inv()*temp[None,:]).matrix()))
 #         c2w = SE3.exp(self.v) #(4,4)
+# =======
+#     def forward(self, cam_id, stage="train"):
+        
+#         # (3, ) axis-angle
+#         r = self.r[cam_id]              
+#         # (3, )
+#         t = self.t[cam_id]
+        
+#         c2w = make_c2w(r, t)  # (4, 4)
+        
+#         if stage == "val":
+#             print(c2w)
+# >>>>>>> c7cac475689f35578bfe02a8f924cb523b4294eb
 
         # learn a delta pose between init pose and target pose, if a init pose is provided
         if self.init_c2w is not None:
             c2w = c2w @ self.init_c2w[cam_id]
-            print("log",se3_log_map(torch.unsqueeze(c2w,0)))
 #             print("lie",SE3.exp())
 #             c2w = c2w.mul(self.init_c2w[cam_id])
 #             print("c2w",c2w[0])

@@ -1,3 +1,4 @@
+from kornia.geometry.epipolar.projection import depth
 from models.poses import LearnPose
 import os
 
@@ -49,7 +50,7 @@ class NeRFSystem(LightningModule):
         self.far = 1
         self.W, self.H = tuple(self.hparams.img_wh)
 
-        self.poses_to_train = [29]
+        self.poses_to_train = self.hparams.poses_to_train
 
         if self.hparams.lamda > 0:
             if self.hparams.depth_norm:
@@ -80,8 +81,6 @@ class NeRFSystem(LightningModule):
                 param.requires_grad = False
 
         load_ckpt(self.nerf_coarse, hparams.weight_path, 'nerf_coarse')
-
-        self.model_pose = LearnPose(num_cams = 1, learn_R = True, learn_t = True)
 
         if hparams.N_importance > 0:
             self.nerf_fine = NeRF()
@@ -140,9 +139,15 @@ class NeRFSystem(LightningModule):
         self.val_dataset = dataset(split='val', **kwargs)
 
         self.all_poses = self.train_dataset.all_poses
+        self.gt_poses = self.train_dataset.gt_poses
         self.directions = self.train_dataset.directions
         num_poses_to_train = len(self.poses_to_train)
-        self.model_pose = LearnPose(num_poses_to_train, learn_R=True, learn_t=True, init_c2w = self.all_poses)
+        
+        if self.hparams.pose_optimization:
+            self.model_pose = LearnPose(num_poses_to_train, learn_R=True, learn_t=True, init_c2w = self.all_poses)
+        else:
+            self.model_pose = LearnPose(num_poses_to_train, learn_R=False, learn_t=False, init_c2w = self.all_poses)
+            self.model_pose.eval()
 
 
     def configure_optimizers(self):
@@ -177,27 +182,35 @@ class NeRFSystem(LightningModule):
         img = img[0]
         #print("posse:{}".format(SE3(self.all_poses).data))
 
-        if self.hparams.lamda > 0:
-            masks = batch['masks']
-            depths = batch['depths']
+#         if self.hparams.lamda > 0:
+        masks = batch['masks'][0]
+        depths = batch['depths'][0]
 
         c2w = self.model_pose(idx)
+        pose_loss = torch.norm(se3_log_map(torch.unsqueeze((c2w@torch.inverse(self.gt_poses[0][0])).t(),0)))
+#         print("gt_poses",self.gt_poses)
         c2w = c2w[:3, :4]
+        
 
         # sample pixel on an image and their rays for training
         r_id = torch.randperm(self.H, device = c2w.device)[:self.train_rand_rows]  # (N_select_rows)
         c_id = torch.randperm(self.W, device = c2w.device)[:self.train_rand_cols]  # (N_select_cols)
         img = img[r_id][:, c_id]
+        depths = depths[r_id][:, c_id]
+        masks = masks[r_id][:, c_id]
         ray_selected_cam = self.directions[r_id][:, c_id].to(c2w.device)  # (N_select_rows, N_select_cols, 3)
         rays_o, rays_d = get_rays(ray_selected_cam, c2w) # both (h*w, 3)
         rays = torch.cat([rays_o, rays_d, self.near*torch.ones_like(rays_o[:, :1]), self.far*torch.ones_like(rays_o[:, :1])], dim = 1)
 
+        # reshaping for calculating losses
         rgbs = img.view(-1, 3)
+        depths = depths.view(-1)
+        masks = masks.view(-1)
 
         results = self(rays)
         rgb_results = {k: v for k, v in results.items() if 'rgb' in k}
         loss_rgb = self.loss[0](rgb_results, rgbs)
-        
+
         if self.hparams.lamda > 0:
             depth_results = {k: v for k, v in results.items() if 'depth' in k}
             loss_depth = self.loss[1](depth_results, depths, masks)
@@ -210,9 +223,11 @@ class NeRFSystem(LightningModule):
             loss = loss_rgb + self.hparams.lamda*loss_depth
         else:
             loss = loss_rgb
-
+        print("pose_loss",pose_loss)
+        print("rgb_loss",loss_rgb)
         self.log('lr', get_learning_rate(self.optimizer))
         self.log('train/rgb_loss', loss_rgb)
+        self.log('train/pose_loss',pose_loss)
         if self.hparams.lamda > 0:
             self.log('train/depth_loss', loss_depth)
         self.log('train/loss', loss)
@@ -226,26 +241,28 @@ class NeRFSystem(LightningModule):
         img = batch['rgbs']
         img = img[0]
 
-        if self.hparams.lamda > 0:
-            masks = batch['masks']
-            depths = batch['depths']
+        #if self.hparams.lamda > 0:
+        masks = batch['masks'][0]
+        depths = batch['depths'][0]
 
-        c2w = self.model_pose(idx)
-        c2w = c2w[:3, :4] 
+        c2w = self.model_pose(idx, stage="val")
+        c2w = c2w[:3, :4]
+        
 
         # sample pixel on an image and their rays for validations
         ray_selected_cam = self.directions.to(c2w.device) # (H, W, 3)
         rays_o, rays_d = get_rays(ray_selected_cam, c2w) # both (H*W, 3)
         rays = torch.cat([rays_o, rays_d, self.near*torch.ones_like(rays_o[:, :1]), self.far*torch.ones_like(rays_o[:, :1])], dim = 1)
-        
-        if self.hparams.lamda > 0:
-            depths = batch['depths'] #(h*w)
-            masks = batch['masks']
 
         # rays = rays.squeeze() # (H*W, 3)
         rgbs = img.view(-1, 3) # (H*W, 3)
+        rgbs = img.view(-1, 3)
+        depths = depths.view(-1)
+        masks = masks.view(-1)
+
         results = self(rays)
         rgb_results = {k: v for k, v in results.items() if 'rgb' in k}
+        
         if self.hparams.lamda > 0:
             depth_results  = {k: v for k, v in results.items() if 'depth' in k}
 

@@ -1,7 +1,7 @@
 Experiment Commands
 
 Exp 1 : 
-python train.py \
+python train_nerf.py \
    --dataset_name llff \
    --root_dir "/scratch/saksham/data/freiburg_small/" \
    --N_importance 64 --img_wh 504 378 \
@@ -19,7 +19,7 @@ python eval.py \
 
 
 Exp 2:
-python train.py \
+python train_nerf.py \
    --dataset_name llff_tum \
    --root_dir "/scratch/saksham/data/freiburg_small/" \
    --N_importance 64 --img_wh 504 378 \
@@ -31,7 +31,7 @@ python train.py \
 
 Exp 2:
 # Small depth
-python train.py \
+python train_nerf.py \
    --dataset_name llff_tum \
    --root_dir "/scratch/saksham/data/freiburg_small/" \
    --N_importance 64 --img_wh 160 120 \
@@ -44,7 +44,7 @@ python train.py \
 
 Exp 3:
 # Small Image
-python train.py \
+python train_nerf.py \
    --dataset_name llff \
    --root_dir "/scratch/saksham/data/freiburg_small/" \
    --N_importance 64 --img_wh 160 120 \
@@ -56,7 +56,7 @@ python train.py \
    --num_gpus 1
 
 Exp 4.1
-python train.py \
+python train_nerf.py \
    --dataset_name llff_tum \
    --root_dir "/scratch/saksham/data/freiburg_small/" \
    --N_importance 64 --img_wh 80 60 \
@@ -68,7 +68,7 @@ python train.py \
    --gpus 1 --lamda 0
 
 Exp 4.2
-python train.py \
+python train_nerf.py \
    --dataset_name llff_tum \
    --root_dir "/scratch/saksham/data/freiburg_small/" \
    --N_importance 64 --img_wh 80 60 \
@@ -80,7 +80,7 @@ python train.py \
    --gpus 1 --lamda 0.1
 
 Exp 4.3
-python train.py \
+python train_nerf.py \
    --dataset_name llff_tum \
    --root_dir "/scratch/saksham/data/freiburg_small/" \
    --N_importance 64 --img_wh 80 60 \
@@ -92,7 +92,7 @@ python train.py \
    --gpus 0 --lamda 1
 
 Exp 4.4
-python train.py \
+python train_nerf.py \
    --dataset_name llff_tum \
    --root_dir "/scratch/saksham/data/freiburg_small/" \
    --N_importance 64 --img_wh 80 60 \
@@ -105,7 +105,7 @@ python train.py \
 
 
 Exp 5
-python train.py \
+python train_nerf.py \
    --dataset_name llff \
    --root_dir "/scratch/saksham/data/freiburg_small/" \
    --N_importance 64 --img_wh 80 60 \
@@ -124,7 +124,7 @@ python eval.py \
 
 
 Exp 6:
-python train.py \
+python train_nerf.py \
    --dataset_name tum \
    --root_dir "/scratch/saksham/data/tum/" \
    --N_importance 64 --img_wh 80 60 \
@@ -135,7 +135,7 @@ python train.py \
    --gpus 1 --lamda 0
 
 Exp 7:
-python train.py \
+python train_nerf.py \
    --dataset_name llff \
    --root_dir "/scratch/saksham/data/freiburg_small/" \
    --N_importance 64 --img_wh 80 60 \
@@ -148,7 +148,7 @@ python train.py \
 
 
 Exp 8:
-python train.py \
+python train_nerf.py \
    --dataset_name llff \
    --root_dir "/scratch/saksham/data/freiburg_small/" \
    --N_importance 64 --img_wh 80 60 \
@@ -160,7 +160,7 @@ python train.py \
    --gpus 1 --lamda 0
 
 Exp 10:
-python train.py \
+python train_nerf.py \
    --dataset_name tum \
    --root_dir "/scratch/saksham/data/tum/" \
    --N_importance 64 --img_wh 80 60 \
@@ -173,7 +173,7 @@ python train.py \
 
 #tum dataloader with colmap poses;
 Didn't work
-python train.py \
+python train_nerf.py \
    --dataset_name tum \
    --root_dir "/scratch/saksham/data/tum/" \
    --N_importance 64 --img_wh 80 60 \
@@ -186,7 +186,7 @@ python train.py \
 
 #llff dataloader with tum aligned poses
 #Works
-python train.py \
+python train_nerf.py \
    --dataset_name llff \
    --root_dir "/scratch/saksham/data/freiburg_small/" \
    --N_importance 64 --img_wh 80 60 \
@@ -200,7 +200,7 @@ python train.py \
 
 #llff dataloader with tum aligned poses and tum images
 # test3
-python train.py \
+python train_nerf.py \
    --dataset_name llff_2 \
    --root_dir "/scratch/saksham/data/freiburg_small/" \
    --N_importance 64 --img_wh 80 60 \
@@ -213,7 +213,7 @@ python train.py \
 
 #tum dataloader with corrected image sizes but poses aligned
 # test 4
-python train.py \
+python train_nerf.py \
    --dataset_name tum \
    --root_dir "/scratch/saksham/data/tum/" \
    --N_importance 64 --img_wh 80 60 \
@@ -226,7 +226,7 @@ python train.py \
 
 #tum dataloader with corrected image sizes but poses not aligned
 #test 5
-python train.py \
+python train_nerf.py \
    --dataset_name tum \
    --root_dir "/scratch/saksham/data/tum/" \
    --N_importance 64 --img_wh 80 60 \
@@ -242,7 +242,7 @@ python train.py \
 Exp 12.0 : original scale
 Exp 12.1 : scale_factor = 1
 Exp 12.2 : origianl scale with colmap pose transformations
-python train.py \
+python train_nerf.py \
    --dataset_name llff \
    --root_dir "/scratch/saksham/data/freiburg_small/" \
    --N_importance 64 --img_wh 80 60 \
@@ -257,7 +257,7 @@ python train.py \
 # Exp 13.0 --- scale_factor = 1, near = bounds.min(), far = bounds.max(),without --use_disp
 # Exp 13.1 -- scale_factor = 1, near = bounds.min()], far = bounds.max(),  --use_disp
 # and removing NDC
-python train.py \
+python train_nerf.py \
    --dataset_name llff_non_ndc \
    --use_disp \
    --root_dir "/scratch/saksham/data/freiburg_small/" \
@@ -271,7 +271,7 @@ python train.py \
 
 # Exp 14.0 --- scale_factor = 1, near = 0.5 , far = 10 ,  --use_disp
 Non-NDC
-python train.py \
+python train_nerf.py \
    --dataset_name tum \
    --use_disp \
    --root_dir "/scratch/saksham/data/tum/" \
@@ -285,7 +285,7 @@ python train.py \
 
 Exp 15
 Non-NDC
-python train.py \
+python train_nerf.py \
    --dataset_name tum \
    --use_disp \
    --root_dir "/scratch/saksham/data/tum/" \
@@ -302,7 +302,7 @@ Non-NDC
 near = 0 and far = 1
 scale_factor = 4.799326327027303
 visualised with min=0 and max = 1
-python train.py \
+python train_nerf.py \
 --dataset_name tum \
 --root_dir "/scratch/saksham/data/tum/" \
 --use_disp \
@@ -320,7 +320,7 @@ Exp 17.0
 scale_factor = near_original*100
 near = self.bounds.min()
 far = self.bounds.max()
-python train.py \
+python train_nerf.py \
    --dataset_name llff_non_ndc \
    --use_disp \
    --root_dir "/scratch/saksham/data/freiburg_small/" \
@@ -336,7 +336,7 @@ Exp 17.1
 #testing on colmap poses
 scale_factor = bounds.max()/0.75
 near = 0, far = 1
-python train.py \
+python train_nerf.py \
    --dataset_name llff_non_ndc \
    --root_dir "/scratch/saksham/data/freiburg_small/" \
    --N_importance 64 --img_wh 80 60 \
@@ -350,7 +350,7 @@ python train.py \
 Exp 17.2 : large image sizes
 scale_factor = bounds.max()/0.75
 near = 0, far = 1
-python train.py \
+python train_nerf.py \
    --dataset_name llff_non_ndc \
    --root_dir "/scratch/saksham/data/freiburg_small/" \
    --N_importance 64 --img_wh 640 480 \
@@ -365,7 +365,7 @@ Exp 18 : large image sizes
 TUM poses 
 scale_factor = 3.59949474527 (How? -- Notion)
 near = 0, far = 1
-python train.py \
+python train_nerf.py \
    --dataset_name tum \
    --root_dir "/scratch/saksham/data/tum/" \
    --N_importance 64 --img_wh 640 480 \
@@ -382,7 +382,7 @@ TUM poses aligned with COLMAP poses
 scale_factor = 25.83046870477367 
 (using experiment 17, colmap poses) : scale by bounds.max() = 25.. and Not bounds.max()/0.75
 near = 0, far = 1
-CUDA_VISIBLE_DEVICES=1 python train.py \
+CUDA_VISIBLE_DEVICES=1 python train_nerf.py \
    --dataset_name tum \
    --root_dir "/scratch/saksham/data/tum/" \
    --N_importance 64 --img_wh 640 480 \
@@ -406,7 +406,7 @@ scale_tum_col = 8.669891269074654
 
 # 20.0
 # Benchmark experiment with llff_tum without depth loss
-CUDA_VISIBLE_DEVICES=1 python train.py \
+CUDA_VISIBLE_DEVICES=1 python train_nerf.py \
    --dataset_name llff_TUM \
    --root_dir "/scratch/saksham/data/freiburg_small/" \
    --N_importance 64 --img_wh 80 60 \
@@ -420,7 +420,7 @@ CUDA_VISIBLE_DEVICES=1 python train.py \
 # 20.1
 # Benchmark experiment with llff_tum with depth loss
 Compare the above depth experiment 
-CUDA_VISIBLE_DEVICES=1 python train.py \
+CUDA_VISIBLE_DEVICES=1 python train_nerf.py \
    --dataset_name llff_TUM \
    --root_dir "/scratch/saksham/data/freiburg_small/" \
    --N_importance 64 --img_wh 80 60 \
@@ -433,7 +433,7 @@ CUDA_VISIBLE_DEVICES=1 python train.py \
 
 # 20.2
 # Benchmark the experiment of llff_non_ndc (low resolution version of Exp 17)
-CUDA_VISIBLE_DEVICES=1 python train.py \
+CUDA_VISIBLE_DEVICES=1 python train_nerf.py \
    --dataset_name llff_non_ndc \
    --root_dir "/scratch/saksham/data/freiburg_small/" \
    --N_importance 64 --img_wh 80 60 \
@@ -448,7 +448,7 @@ CUDA_VISIBLE_DEVICES=1 python train.py \
 # Exp 21: Repeat Experiment 20 at large image sizes
 # 21.0 -  repeat of  20.0 at high res
 # 21.0 Without Depth Loss
-CUDA_VISIBLE_DEVICES=1 python train.py \
+CUDA_VISIBLE_DEVICES=1 python train_nerf.py \
    --dataset_name llff_TUM \
    --root_dir "/scratch/saksham/data/freiburg_small/" \
    --N_importance 64 --img_wh 640 480 \
@@ -461,7 +461,7 @@ CUDA_VISIBLE_DEVICES=1 python train.py \
 
 # 21.1 -  repreat of 20.1 at high res
 # 21.1 With Depth Loss
-CUDA_VISIBLE_DEVICES=0 python train.py \
+CUDA_VISIBLE_DEVICES=0 python train_nerf.py \
    --dataset_name llff_TUM \
    --root_dir "/scratch/saksham/data/freiburg_small/" \
    --N_importance 64 --img_wh 640 480 \
@@ -476,7 +476,7 @@ CUDA_VISIBLE_DEVICES=0 python train.py \
 # NON-NDC COLMAP added just for comparison
 # ideally 21.0 and 17 should match but they are not.
 # I am getting better results with llff_non_ndc than llff_TUM
-CUDA_VISIBLE_DEVICES=1 python train.py \
+CUDA_VISIBLE_DEVICES=1 python train_nerf.py \
    --dataset_name llff_non_ndc \
    --root_dir "/scratch/saksham/data/freiburg_small/" \
    --N_importance 64 --img_wh 640 480 \
@@ -492,7 +492,7 @@ Exp 22 : large image sizes
 TUM poses with depth loss
 scale_factor = 3.59949474527 (How? -- Notion)
 near = 0, far = 1
-CUDA_VISIBLE_DEVICES=1 python train.py \
+CUDA_VISIBLE_DEVICES=1 python train_nerf.py \
    --dataset_name tum \
    --root_dir "/scratch/saksham/data/tum/" \
    --N_importance 64 --img_wh 80 60 \
@@ -503,7 +503,7 @@ CUDA_VISIBLE_DEVICES=1 python train.py \
    --exp_name "tum_desk_exp22" \
    --gpus 0 --lamda 1
 
-CUDA_VISIBLE_DEVICES=0 python train.py \
+CUDA_VISIBLE_DEVICES=0 python train_nerf.py \
    --dataset_name tum \
    --root_dir "/scratch/saksham/data/tum/" \
    --N_importance 64 --img_wh 640 480 \
@@ -518,7 +518,7 @@ Exp 23:
 Use L1 depth loss as in iMAP paper
 
 # 23.1 - Small Image with L1 loss normalised by depth variance
-CUDA_VISIBLE_DEVICES=1 python train.py \
+CUDA_VISIBLE_DEVICES=1 python train_nerf.py \
    --dataset_name tum \
    --root_dir "/scratch/saksham/data/tum/" \
    --N_importance 64 --img_wh 80 60 \
@@ -531,7 +531,7 @@ CUDA_VISIBLE_DEVICES=1 python train.py \
    --gpus 0 --lamda 1
 
 # 23.1 - Small Image with L2 loss normalised by depth variance
-CUDA_VISIBLE_DEVICES=1 python train.py \
+CUDA_VISIBLE_DEVICES=1 python train_nerf.py \
    --dataset_name tum \
    --root_dir "/scratch/saksham/data/tum/" \
    --N_importance 64 --img_wh 80 60 \
@@ -544,7 +544,7 @@ CUDA_VISIBLE_DEVICES=1 python train.py \
    --gpus 0 --lamda 1
 
 # 23.2 - large image
-CUDA_VISIBLE_DEVICES=1 python train.py \
+CUDA_VISIBLE_DEVICES=1 python train_nerf.py \
    --dataset_name tum \
    --root_dir "/scratch/saksham/data/tum/" \
    --N_importance 64 --img_wh 640 480 \
@@ -557,7 +557,7 @@ CUDA_VISIBLE_DEVICES=1 python train.py \
    --gpus 0 --lamda 1 
 
 ##################
-CUDA_VISIBLE_DEVICES=1 python train.py \
+CUDA_VISIBLE_DEVICES=1 python train_nerf.py \
    --dataset_name tum_inv \
    --root_dir "/scratch/saksham/data/tum/" \
    --N_importance 64 --img_wh 640 480 \
@@ -568,3 +568,16 @@ CUDA_VISIBLE_DEVICES=1 python train.py \
    --exp_name "invert_tum_test" \
    --gpus 0 --lamda 0 \
    --ckpt_path "ckpts/tum_desk_exp18/epoch=14.ckpt"
+
+
+#Exp 24
+CUDA_VISIBLE_DEVICES=0 python train_nerf.py \
+   --dataset_name tum \
+   --root_dir "/scratch/saksham/data/tum/" \
+   --N_importance 64 --img_wh 640 480 \
+   --num_epochs 60 --batch_size 4096 \
+   --optimizer adam --lr 5e-4 \
+    --start 25 --end 50 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "tum_desk_exp24" \
+   --gpus 0 --lamda 1

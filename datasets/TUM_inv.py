@@ -236,7 +236,7 @@ class TUMDataset(Dataset):
 
         # Step 2: read poses from TUM dataloader
         # read extrinsics (of successfully reconstructed images)
-        dataset = TUM(self.root_dir, sequences = self.sequences, seqlen = 30, start = 56)
+        dataset = TUM(self.root_dir, sequences = self.sequences, seqlen = self.end-self.start, start = self.start+56)
         self.colors, self.depths, intrinsics, poses, transforms, names, timestamps = dataset[0]
         num_images = self.colors.shape[0]
         poses = poses.numpy() # (N_images, 3, 4) cam2world matrices
@@ -279,12 +279,14 @@ class TUMDataset(Dataset):
         self.all_poses = []
         self.all_depths = []
         self.all_masks = []
+        self.gt_poses = []
 
         for i in range(num_images):
 
             if i in self.poses_to_train:
+                c2w = torch.FloatTensor(self.poses[i-2]).view(1, 4, 4) # (4, 4)
+                self.gt_poses.append(torch.FloatTensor(self.poses[i]).view(1, 4, 4).to(device='cuda')) 
 
-                c2w = torch.FloatTensor(self.poses[i]).view(1, 4, 4) # (4, 4)
                 img = self.colors[i]
                 depth = self.depths[i]            
 
@@ -299,10 +301,10 @@ class TUMDataset(Dataset):
                 depth = cv2.resize(depth, (self.img_wh), interpolation = cv2.INTER_NEAREST)
                 mask = 1 - ((depth).astype('uint8'))==0        
                 mask = torch.Tensor(mask)
-                mask = mask.view(1, self.img_wh[1], self.img_wh[0]) # (h, w, 1)
+                mask = mask.view(self.img_wh[1], self.img_wh[0], 1) # (h, w, 1)
                 depth = depth/scale_factor
                 depth = torch.Tensor(depth)
-                depth = depth.view(1, self.img_wh[1], self.img_wh[0]) # h, w, 1)
+                depth = depth.view(self.img_wh[1], self.img_wh[0], 1) # h, w, 1)
 
                 self.all_depths.append(depth)
                 self.all_masks.append(mask)

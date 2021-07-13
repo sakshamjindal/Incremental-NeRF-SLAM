@@ -216,7 +216,7 @@ class TUMDataset(Dataset):
 
         # Step 2: read poses from TUM dataloader
         # read extrinsics (of successfully reconstructed images)
-        dataset = TUM(self.root_dir, sequences = self.sequences, seqlen = 30, start = 56)
+        dataset = TUM(self.root_dir, sequences = self.sequences, seqlen = self.end - self.start, start = 56 + self.start)
         self.colors, self.depths, intrinsics, poses, transforms, names, timestamps = dataset[0]
         num_images = self.colors.shape[0]
         poses = poses.numpy() # (N_images, 3, 4) cam2world matrices
