@@ -2,6 +2,7 @@ import torch
 from torch.utils.data import Dataset
 import glob
 import numpy as np
+import math
 import os
 import cv2
 from PIL import Image
@@ -216,7 +217,8 @@ class TUMDataset(Dataset):
 
         # Step 2: read poses from TUM dataloader
         # read extrinsics (of successfully reconstructed images)
-        dataset = TUM(self.root_dir, sequences = self.sequences, seqlen = self.end - self.start, start = 56 + self.start)
+        seqlen = math.ceil(((self.end - self.start)/self.period))
+        dataset = TUM(self.root_dir, sequences = self.sequences, seqlen = seqlen, start = 56 + self.start, dilation = self.period - 1)
         self.colors, self.depths, intrinsics, poses, transforms, names, timestamps = dataset[0]
         num_images = self.colors.shape[0]
         poses = poses.numpy() # (N_images, 3, 4) cam2world matrices
@@ -326,8 +328,7 @@ class TUMDataset(Dataset):
                 radii = np.percentile(np.abs(self.poses[..., 3]), 90, axis=0)
                 self.poses_test = create_spiral_poses(radii, focus_depth)
             else:
-                radius = 1.1 * depths[depths>0].min()
-                self.poses_test = create_spheric_poses(radius)
+                pass
 
     def define_transforms(self):
         self.transform = T.ToTensor()

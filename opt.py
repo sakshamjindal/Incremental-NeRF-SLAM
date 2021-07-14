@@ -31,7 +31,11 @@ def get_opts():
                         help='freeze nerf while optimizing for poses')
     parser.add_argument('--pose_optimization', default=False, action="store_true",
                         help='enable pose optimization')
+    parser.add_argument('--optimised_poses', nargs="+", type = int, default=[29],
+                        help='number of gpus')          
     parser.add_argument('--poses_to_train', nargs="+", type = int, default=[29],
+                        help='number of gpus')
+    parser.add_argument('--poses_to_val', nargs="+", type = int, default=[29],
                         help='number of gpus')
     parser.add_argument('--perturb', type=float, default=1.0,
                         help='factor to perturb depth sampling points')
@@ -51,11 +55,16 @@ def get_opts():
                         help='number of gpus')
     parser.add_argument('--ckpt_path', type=str, default=None,
                         help='pretrained checkpoint to load (including optimizers, etc)')
+    parser.add_argument('--pose_params_path', type=str, default=None,
+                        help='pretrained checkpoint to load the poses(including optimizers, etc)')
+    parser.add_argument('--relative_pose_weight_path', type=str, default=None,
+                        help='pretrained checkpoint to load the relative poses(including optimizers, etc)')
     parser.add_argument('--prefixes_to_ignore', nargs='+', type=str, default=['loss'],
                         help='the prefixes to ignore in the checkpoint state dict')
     parser.add_argument('--weight_path', type=str, default=None,
                         help='pretrained model weight to load (do not load optimizers, etc)')
-
+    parser.add_argument('--relative_pose_mode', type=str, default="f_to_g",
+                        help='defines whether you are trying to find rel. poses from f to g or g to f)')
     parser.add_argument('--optimizer', type=str, default='adam',
                         help='optimizer type',
                         choices=['sgd', 'adam', 'radam', 'ranger'])

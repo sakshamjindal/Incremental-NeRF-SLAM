@@ -12,6 +12,8 @@ from typing import Optional
 from .ray_utils import *
 from .colmap_utils import \
     read_cameras_binary, read_images_binary, read_points3d_binary
+from models.poses import LearnPose
+from utils import load_ckpt
 
 from gradslam.datasets.tum import TUM
 
@@ -197,6 +199,7 @@ def convert3x4_4x4(input):
 class TUMDataset(Dataset):
     def __init__(self, 
         root_dir,
+        pose_params_path,
         sequences = "sequences.txt",
         split='train',
         img_wh=(640, 480),
@@ -204,7 +207,9 @@ class TUMDataset(Dataset):
         start: Optional[int] = None,
         period: Optional[int] = 1,
         end: Optional[int] = None,
-        poses_to_train = []
+        poses_to_train = [],
+        poses_to_val = [],
+        optimised_poses = []
     ):
         """
         spheric_poses: whether the images are taken in a spheric inward-facing manner
@@ -222,7 +227,25 @@ class TUMDataset(Dataset):
         self.start = start
         self.end = end
         self.period = period
-        self.poses_to_train = poses_to_train
+        self.poses_to_train = sorted(poses_to_train)
+        self.poses_to_val = sorted(poses_to_val)
+        self.optimised_poses = optimised_poses
+        
+        self.poses_to_train = [x - self.start for x in self.poses_to_train]
+        self.poses_to_val = [x - self.start for x in self.poses_to_val]
+        self.optimised_poses = [x - self.start for x in self.optimised_poses]
+
+        self.num_poses = len(self.optimised_poses)
+        pose_optimisation = False
+        if not pose_optimisation:
+            self.model_pose = LearnPose(self.num_poses, learn_R=False, learn_t=False, init_c2w = torch.zeros((self.num_poses, 4, 4)))
+            self.model_pose = self.model_pose.cpu()
+            self.model_pose.eval()
+
+            for param in self.model_pose.parameters():
+                param.requires_grad = False
+
+        load_ckpt(self.model_pose, pose_params_path, 'model_pose')
         self.define_transforms()
 
         self.read_meta()
@@ -284,7 +307,7 @@ class TUMDataset(Dataset):
 
         for i in range(num_images):
 
-            if i in self.poses_to_train:
+            if i in self.optimised_poses:
 
                 c2w = torch.FloatTensor(self.poses[i]).view(1, 4, 4) # (4, 4)
                 img = self.colors[i]
@@ -312,46 +335,39 @@ class TUMDataset(Dataset):
 
         self.all_poses = torch.cat(self.all_poses, dim = 0)
         assert len(self.all_rgbs) > 0 and len(self.all_poses) > 0 and len(self.all_depths) > 0 and len(self.all_masks) > 0
-        
-        #assert len(self.poses_to_train) > 0
-        self.val_idx = [self.poses_to_train[-1]]
-       
-
-        # elif self.split == 'val':
-        #     assert len(self.poses_to_train) > 0
-        #     self.val_idx = [self.poses_to_train[-1]]
-
-        # else: # for testing, create a parametric rendering path
-        #     raise ValueError("mode should be either train or val")
 
     def define_transforms(self):
         self.transform = T.ToTensor()
 
     def __len__(self):
         if self.split == 'train':
-            return len(self.all_rgbs)
+            return len(self.poses_to_train)
         if self.split == 'val':
-            return 1
+            return len(self.poses_to_val)
 
     def __getitem__(self, idx):
         
         if self.split == 'train': # use data in the buffers
+            train_idx = self.poses_to_train[idx]
+            positional_index = self.optimised_poses.index(train_idx)
             sample = {
                 'idx' : idx,
-                'poses': self.all_poses[idx],
-                'rgbs': self.all_rgbs[idx],
-                'depths' : self.all_depths[idx],
-                'masks': self.all_masks[idx]
+                'poses': self.all_poses[positional_index],
+                'alt_poses' : self.model_pose(positional_index),
+                'rgbs': self.all_rgbs[positional_index],
+                'depths' : self.all_depths[positional_index],
+                'masks': self.all_masks[positional_index]
             }
 
         else:
             if self.split == 'val':
-                val_idx = self.val_idx[idx]
-                positional_index = self.poses_to_train.index(val_idx)
+                val_idx = self.poses_to_val[idx]
+                positional_index = self.optimised_poses.index(val_idx)
 
                 return {
                     'idx' : positional_index,
                     'poses': self.all_poses[positional_index],
+                    'alt_poses' : self.model_pose(positional_index),
                     'rgbs': self.all_rgbs[positional_index],
                     'depths' : self.all_depths[positional_index],
                     'masks': self.all_masks[positional_index]

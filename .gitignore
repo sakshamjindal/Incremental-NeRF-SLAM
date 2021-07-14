@@ -3,6 +3,8 @@ logs/
 inv_ckpts/
 inv_logs/
 ckpts/
+rel_logs/
+rel_ckpts/
 results/*/*
 *.plys
 *.vol

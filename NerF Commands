@@ -581,3 +581,15 @@ CUDA_VISIBLE_DEVICES=0 python train_nerf.py \
    --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
    --exp_name "tum_desk_exp24" \
    --gpus 0 --lamda 1
+
+#Exp 25
+CUDA_VISIBLE_DEVICES=0 python train_nerf.py \
+   --dataset_name tum \
+   --root_dir "/scratch/saksham/data/tum/" \
+   --N_importance 64 --img_wh 640 480 \
+   --num_epochs 60 --batch_size 4096 \
+   --optimizer adam --lr 5e-4 \
+    --start 25 --period 2 --end 50 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "tum_desk_exp25" \
+   --gpus 0 --lamda 1
