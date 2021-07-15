@@ -84,7 +84,7 @@ CUDA_VISIBLE_DEVICES=1 python train.py \
    --root_dir "/scratch/saksham/data/tum/" \
    --freeze_nerf \
    --pose_optimization \
-   --poses_to_train 25 26 27 28 29 \
+   --poses_to_train 25 26 27 28  29 \
    --N_importance 64 --img_wh 640 480 \
    --num_epochs 1000 --batch_size 4096  \
    --optimizer adam --lr 5e-4 \
