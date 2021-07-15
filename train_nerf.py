@@ -1,7 +1,7 @@
 import os
 
 from pytorch_lightning import loggers
-from opt import get_opts
+from opt import get_opts, dataset_path
 import torch
 from collections import defaultdict
 
@@ -92,7 +92,7 @@ class NeRFSystem(LightningModule):
     def setup(self, stage):
         
         dataset = dataset_dict[self.hparams.dataset_name]
-        kwargs = {'root_dir': self.hparams.root_dir,
+        kwargs = {'root_dir': dataset_path,
                   'img_wh': tuple(self.hparams.img_wh),
                   'start': self.hparams.start,
                   'end' : self.hparams.end,

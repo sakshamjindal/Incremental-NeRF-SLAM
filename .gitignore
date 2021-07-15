@@ -1,5 +1,7 @@
 .vscode/
+pytorch3d/
 logs/
+nerf_ckpts/
 inv_ckpts/
 inv_logs/
 ckpts/

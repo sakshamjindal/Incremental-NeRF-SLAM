@@ -1,0 +1,40 @@
+# Pose optimisation using nerf F from (0:1:30 .. 30 poses)
+
+CUDA_VISIBLE_DEVICES=1 python train.py \
+   --dataset_name tum_inv \
+   --root_dir "/scratch/saksham/data/tum/" \
+   --freeze_nerf \
+   --val_frequency 20 \
+   --pose_optimization \
+   --poses_to_train 31 \
+   --poses_to_val 31 \
+   --initial_poses "{31:29}" \
+   --N_importance 64 --img_wh 640 480 \
+   --num_epochs 1000 --batch_size 4096  \
+   --optimizer adam --lr 5e-4 \
+   --start 0 --end 30  \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "test_f"  \
+   --gpus 0 --lamda 1  \
+   --weight_path "ckpts/tum_desk_exp22/epoch=28.ckpt"
+
+# Pose optimisation using nerf G from (25:2:52 .. 13 poses)
+
+CUDA_VISIBLE_DEVICES=0 python train.py \
+   --dataset_name tum_inv \
+   --root_dir "/scratch/saksham/data/tum/" \
+   --freeze_nerf \
+   --pose_optimization \
+   --val_frequency 20 \
+   --poses_to_train 29 \
+   --poses_to_val 29 \
+   --initial_poses "{29:29}" \
+   --N_importance 64 --img_wh 640 480 \
+   --num_epochs 1000 --batch_size 4096  \
+   --optimizer adam --lr 5e-4 \
+   --start 25 --end 52 --period 2  \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "test_g"  \
+   --gpus 0 --lamda 1  \
+   --weight_path "ckpts/tum_desk_exp24/epoch=23.ckpt"
+

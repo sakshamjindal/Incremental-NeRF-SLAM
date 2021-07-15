@@ -1,11 +1,11 @@
-from kornia.geometry.epipolar.projection import depth
 from models.poses import LearnPose
 import os
 
 from pytorch_lightning import loggers
-from opt import get_opts
+from opt import get_opts, dataset_path
 import torch
 from collections import defaultdict
+from metrics import pose_metrics
 from gradslam.datasets.tum import TUM
 
 from torch.utils.data import DataLoader
@@ -45,8 +45,6 @@ class NeRFSystem(LightningModule):
         self.near = 0.05
         self.far = 1
         self.W, self.H = tuple(self.hparams.img_wh)
-
-        self.poses_to_train = self.hparams.poses_to_train
 
         if self.hparams.lamda > 0:
             if self.hparams.depth_norm:
@@ -123,20 +121,22 @@ class NeRFSystem(LightningModule):
     def _setup(self):
         
         dataset = dataset_dict[self.hparams.dataset_name]
-        kwargs = {'root_dir': self.hparams.root_dir,
+        kwargs = {'root_dir': dataset_path,
                   'img_wh': tuple(self.hparams.img_wh),
                   'start': self.hparams.start,
                   'end' : self.hparams.end,
                   'period' : self.hparams.period,
-                  'poses_to_train' : self.poses_to_train
+                  'poses_to_train' : self.hparams.poses_to_train,
+                  'poses_to_val' : self.hparams.poses_to_val,
+                  'initial_poses' : self.hparams.initial_poses,
                   }
 
         self.train_dataset = dataset(split='train', **kwargs)
         self.val_dataset = dataset(split='val', **kwargs)
 
-        self.all_poses = self.train_dataset.all_poses
+        self.all_poses = self.train_dataset.all_initial_poses
         self.directions = self.train_dataset.directions
-        num_poses_to_train = len(self.poses_to_train)
+        num_poses_to_train = len(self.hparams.poses_to_train)
         
         if self.hparams.pose_optimization:
             self.model_pose = LearnPose(num_poses_to_train, learn_R=True, learn_t=True, init_c2w = self.all_poses)
@@ -172,15 +172,19 @@ class NeRFSystem(LightningModule):
     def training_step(self, batch, batch_nb):
 
         idx = batch['idx'].detach().cpu().numpy()[0]
-        img = batch['rgbs']
-        batch_size = img.shape[0]
-        img = img[0]
+        img = batch['rgbs'][0]
+        gt_pose = batch['gt_poses'][0]
 
         if self.hparams.lamda > 0:
             masks = batch['masks'][0]
             depths = batch['depths'][0]
 
         c2w = self.model_pose(idx)
+
+        # Calculating pose loss metric - pose loss, quartenian distances, geodesical distances
+        with torch.no_grad():
+            pose_loss, quat_distance = pose_metrics(c2w, gt_pose)
+
         c2w = c2w[:3, :4] 
 
         # sample pixel on an image and their rays for training
@@ -217,6 +221,8 @@ class NeRFSystem(LightningModule):
 
         self.log('lr', get_learning_rate(self.optimizer))
         self.log('train/rgb_loss', loss_rgb)
+        self.log('train/pose_loss',pose_loss)
+        self.log('train/quat_distance', quat_distance)
         if self.hparams.lamda > 0:
             self.log('train/depth_loss', loss_depth)
         self.log('train/loss', loss)
@@ -227,14 +233,18 @@ class NeRFSystem(LightningModule):
     def validation_step(self, batch, batch_nb):
 
         idx = batch['idx'].detach().cpu().numpy()[0]
-        img = batch['rgbs']
-        img = img[0]
+        img = batch['rgbs'][0]
+        gt_pose = batch['gt_poses'][0]
 
         if self.hparams.lamda > 0:
             masks = batch['masks'][0]
             depths = batch['depths'][0]
 
         c2w = self.model_pose(idx, stage="val")
+
+        with torch.no_grad():
+            pose_loss, quat_distance = pose_metrics(c2w, gt_pose)
+
         c2w = c2w[:3, :4] 
 
         # sample pixel on an image and their rays for validations
@@ -285,6 +295,8 @@ class NeRFSystem(LightningModule):
 
         psnr_ = psnr(results[f'rgb_{typ}'], rgbs)
         log['val_psnr'] = psnr_
+        log['pose_loss'] = pose_loss
+        log['quat_distance'] = quat_distance
 
         return log
 
@@ -295,12 +307,16 @@ class NeRFSystem(LightningModule):
             mean_depth_loss = torch.stack([x['val_depth_loss'] for x in outputs]).mean()
         
         mean_psnr = torch.stack([x['val_psnr'] for x in outputs]).mean()
+        mean_pose_loss = torch.stack([x['pose_loss'] for x in outputs]).mean()
+        mean_quat_distance = torch.stack([x['quat_distance'] for x in outputs]).mean()
 
         self.log('val/rgb_loss', mean_rgb_loss)
         if self.hparams.lamda > 0:
             self.log('val/depth_loss', mean_depth_loss)
 
         self.log('val/psnr', mean_psnr, prog_bar=True)
+        self.log('val/pose_loss', mean_pose_loss, prog_bar=False)
+        self.log('val/quat_distance', mean_quat_distance, prog_bar=False)
 
 
 def main(hparams):

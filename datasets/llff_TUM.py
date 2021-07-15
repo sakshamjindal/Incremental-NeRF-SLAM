@@ -12,7 +12,7 @@ from .ray_utils import *
 from .colmap_utils import \
     read_cameras_binary, read_images_binary, read_points3d_binary
 
-from datasets.tum import TUMRGBDDataset
+from datasets.tum2 import TUMRGBDDataset
 
 def normalize(v):
     """Normalize a vector."""
