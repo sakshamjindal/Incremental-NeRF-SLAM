@@ -250,12 +250,14 @@ class TUMDataset(Dataset):
     def __getitem__(self, idx):
 
         if self.split == "train":
-            poses_to_consider = self.poses_to_train
+            pose_number = self.poses_to_train[idx]
+            positional_index = self.poses_to_train.index(pose_number)
         elif self.split == "val":
-            poses_to_consider = self.poses_to_val
+            pose_number = self.poses_to_val[idx]
+            positional_index = self.poses_to_train.index(pose_number)
 
         sample = {
-            'idx' : idx,
+            'idx' : positional_index,
             'poses': self.all_initial_poses[idx],
             'gt_poses': self.gt_poses[idx],
             'rgbs': self.all_rgbs[idx],
