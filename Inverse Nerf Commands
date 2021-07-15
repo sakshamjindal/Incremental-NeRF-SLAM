@@ -37,5 +37,5 @@ CUDA_VISIBLE_DEVICES=0 python train.py \
    --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
    --exp_name "test_g"  \
    --gpus 0 --lamda 1  \
-   --weight_path "ckpts/tum_desk_exp24/epoch=23.ckpt"
+   --weight_path "ckpts/tum_desk_exp25/epoch=36.ckpt"
 
