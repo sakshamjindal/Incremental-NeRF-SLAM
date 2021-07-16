@@ -30,12 +30,12 @@ class LearnPose(nn.Module):
         t = self.t[cam_id]
         
         c2w = make_c2w(r, t)  # (4, 4)
-        
-        if stage == "val":
-            print(c2w)
 
         # learn a delta pose between init pose and target pose, if a init pose is provided
         if self.init_c2w is not None:
             c2w = c2w @ self.init_c2w[cam_id]
+
+        if stage == "val":
+                print(c2w)
 
         return c2w

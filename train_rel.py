@@ -1,20 +1,25 @@
-from models.poses import LearnPose
 import os
+
+from PIL.Image import init
+import hyp
 
 from pytorch_lightning import loggers
 from opt import get_opts, dataset_path
 import torch
 from collections import defaultdict
+from metrics import pose_metrics
 from gradslam.datasets.tum import TUM
 
 from torch.utils.data import DataLoader
 from datasets import dataset_dict
 from datasets.ray_utils import *
+from datasets.concat import ConcatDataset
 
 # models
 from models.nerf import *
 from models.rendering import *
 from models.poses import *
+from models.poses import LearnPose
 
 # optimizer, scheduler, visualization
 from utils import *
@@ -39,29 +44,49 @@ class NeRFSystem(LightningModule):
         self.root_dir = self.hparams.root_dir
         self.sequences = "sequences.txt"
         self.img_wh = tuple(self.hparams.img_wh)
-        self.train_rand_rows = 64
-        self.train_rand_cols = 64
+        self.train_rand_rows = 45
+        self.train_rand_cols = 45
         self.near = 0.05
         self.far = 1
         self.W, self.H = tuple(self.hparams.img_wh)
 
-        self.poses_to_train = self.hparams.poses_to_train
-        self.poses_to_val = self.hparams.poses_to_val
-
-        self.optimised_poses_f = self.hparams.optimised_poses_f
-        self.optimised_poses_g = self.hparams.optimised_poses_g
+        if self.hparams.mode == "f_to_g":
+            self.f_to_g = True
+            self.g_to_f = False
+        elif self.hparams.mode == "g_to_f":
+            self.g_to_f = True
+            self.f_to_g = False
+        elif self.hparams.mode == "both":
+            self.f_to_g = True
+            self.g_to_f = True
+            
+        if self.f_to_g:
+            self.start_g = hyp.start_g
+            self.period_g = hyp.period_g
+            self.end_g = hyp.end_g
+            self.nerf_g_weight_path = hyp.nerf_g_weight_path
+            self.poses_to_train_f = self.hparams.poses_to_train_f
+            self.poses_to_val_f = self.hparams.poses_to_val_f
+            self.optimised_poses_f = self.hparams.optimised_poses_f
+            self.nerf_f_pose_path = self.hparams.nerf_f_pose_path
+            self.models_g = {}
+    
+        if self.g_to_f:
+            self.start_f = hyp.start_f
+            self.period_f = hyp.period_f
+            self.end_f = hyp.end_f
+            self.nerf_f_weight_path  = hyp.nerf_f_weight_path
+            self.poses_to_train_g = self.hparams.poses_to_train_g
+            self.poses_to_val_g = self.hparams.poses_to_val_g
+            self.optimised_poses_g = self.hparams.optimised_poses_g
+            self.nerf_g_pose_path = self.hparams.nerf_g_pose_path
+            self.models_f = {}
 
         if self.hparams.lamda > 0:
             if self.hparams.depth_norm:
-                self.loss = [
-                    loss_dict['color'](coef=1),
-                    loss_dict['depth_norm'](coef=1) 
-                ]
+                self.loss = [loss_dict['color'](coef=1),loss_dict['depth_norm'](coef=1)]
             else:
-                self.loss = [
-                    loss_dict['color'](coef=1),
-                    loss_dict['depth'](coef=1) 
-                ]
+                self.loss = [loss_dict['color'](coef=1),loss_dict['depth'](coef=1)]
         else:
             self.loss = [loss_dict['color'](coef=1)]
 
@@ -74,31 +99,41 @@ class NeRFSystem(LightningModule):
         nerf_types = ['coarse', 'fine']
 
         for nerf_type in nerf_types:
-            if nerf_type == "coarse" and not hparams.N_importance > 0:
+
+            if nerf_type == "fine" and not hparams.N_importance > 0:
                 continue
 
-            if nerf_type == "fine" and not hparams.N_samples > 0:
+            if nerf_type == "coarse" and not hparams.N_samples > 0:
                 continue
 
             if self.g_to_f:
-                self.nerf_coarse = NeRF()
-                self.models_f = {'{}'.format(nerf_type): self.nerf_coarse}
+                if nerf_type == "coarse":
+                    self.nerf_coarse_f = NeRF()
+                    self.models_f['{}'.format(nerf_type)] =  self.nerf_coarse_f
+                elif nerf_type == "fine":
+                    self.nerf_fine_f = NeRF()
+                    self.models_f['{}'.format(nerf_type)] =  self.nerf_fine_f
+                
                 if self.hparams.freeze_nerf:
                     self.models_f['{}'.format(nerf_type)].eval()
                     for param in self.models_f['{}'.format(nerf_type)].parameters():
                         param.requires_grad = False
 
-                load_ckpt(self.models_f['{}'.format(nerf_type)], hparams.nerf_f_weight_path, 'nerf_{}'.format(nerf_type))
+                load_ckpt(self.models_f['{}'.format(nerf_type)], self.nerf_f_weight_path, 'nerf_{}'.format(nerf_type))
 
             if self.f_to_g:
-                self.nerf_coarse = NeRF()
-                self.models_g = {'{}'.format(nerf_type) : self.nerf_coarse}
+                if nerf_type == "coarse":
+                    self.nerf_coarse_g = NeRF()
+                    self.models_g['{}'.format(nerf_type)] =  self.nerf_coarse_g
+                elif nerf_type == "fine":
+                    self.nerf_fine_g = NeRF()
+                    self.models_g['{}'.format(nerf_type)] =  self.nerf_fine_g
                 if self.hparams.freeze_nerf:
                     self.models_g['{}'.format(nerf_type)].eval()
                     for param in self.models_g['{}'.format(nerf_type)].parameters():
                         param.requires_grad = False
 
-                load_ckpt(self.models_g['{}'.format(nerf_type)], hparams.nerf_g_weight_path, 'nerf_{}'.format(nerf_type))
+                load_ckpt(self.models_g['{}'.format(nerf_type)], self.nerf_g_weight_path, 'nerf_{}'.format(nerf_type))
 
         self._setup()
 
@@ -128,7 +163,7 @@ class NeRFSystem(LightningModule):
                             self.hparams.noise_std,
                             self.hparams.N_importance,
                             self.hparams.chunk, # chunk size is effective in val mode
-                            self.train_dataset.white_back)
+                            False)
 
             for k, v in rendered_ray_chunks.items():
                 results[k] += [v]
@@ -145,13 +180,13 @@ class NeRFSystem(LightningModule):
             kwargs_f = {
                 'root_dir': dataset_path,
                 'img_wh': tuple(self.hparams.img_wh),
-                'start': self.hparams.start,
-                'end' : self.hparams.end,
-                'period' : self.hparams.period,
-                'poses_to_train' : self.poses_to_train,
-                'poses_to_val' : self.poses_to_val,
-                'optimised_poses' : self.optimised_poses,
-                'pose_params_path' : self.hparams.nerf_g_pose_path
+                'start': self.start_g,
+                'end' : self.end_g,
+                'period' : self.period_g,
+                'poses_to_train' : self.poses_to_train_f,
+                'poses_to_val' : self.poses_to_val_f,
+                'optimised_poses' : self.optimised_poses_f,
+                'pose_params_path' : self.nerf_f_pose_path
             }
 
             self.train_dataset_f = dataset(split='train', **kwargs_f)
@@ -162,20 +197,28 @@ class NeRFSystem(LightningModule):
             kwargs_g = {
                 'root_dir': dataset_path,
                 'img_wh': tuple(self.hparams.img_wh),
-                'start': self.hparams.start,
-                'end' : self.hparams.end,
-                'period' : self.hparams.period,
-                'poses_to_train' : self.poses_to_train,
-                'poses_to_val' : self.poses_to_val,
-                'optimised_poses' : self.optimised_poses,
-                'pose_params_path' : self.hparams.nerf_g_pose_path
+                'start': self.start_f,
+                'end' : self.end_f,
+                'period' : self.period_f,
+                'poses_to_train' : self.poses_to_train_g,
+                'poses_to_val' : self.poses_to_val_g,
+                'optimised_poses' : self.optimised_poses_g,
+                'pose_params_path' : self.nerf_g_pose_path
             }
 
             self.train_dataset_g = dataset(split='train', **kwargs_g)
-            self.val_dataset_g = dataset(split='val', **kwargs_f)
+
+            initialise_rel_pose = True
+            init_c2w = None
+            if initialise_rel_pose:
+                alt_pose = self.train_dataset_g[0]['alt_poses']
+                gt_pose = self.train_dataset_g[2]['gt_poses']
+                init_c2w = torch.unsqueeze(torch.mm(gt_pose, torch.inverse(alt_pose)), 0)
+
+            self.val_dataset_g = dataset(split='val', **kwargs_g)
             self.directions = self.train_dataset_g.directions
 
-        self.relative_pose = LearnPose(1, learn_R=True, learn_t=True, init_c2w = None)
+        self.relative_pose = LearnPose(1, learn_R=True, learn_t=True, init_c2w = init_c2w)
         #load_ckpt(self.relative_pose, self.hparams.relative_pose_weight_path, 'relative_pose')
 
     def configure_optimizers(self):
@@ -197,6 +240,10 @@ class NeRFSystem(LightningModule):
                                     batch_size=1,
                                     pin_memory=True
                                 )
+
+            if not self.g_to_f:
+                return loaders['data_f']
+
         if self.g_to_f:
             loaders['data_g'] = DataLoader(
                                     self.train_dataset_g,
@@ -205,33 +252,58 @@ class NeRFSystem(LightningModule):
                                     batch_size=1,
                                     pin_memory=True
                                 )
-        return loaders
+
+            if not self.f_to_g:
+                return loaders['data_g']
+
+        if self.f_to_g and self.g_to_f:
+            concat_dataset = ConcatDataset(
+                self.train_dataset_f,
+                self.train_dataset_g
+            )
+        
+            return DataLoader(
+                        concat_dataset,
+                        shuffle=True,
+                        num_workers=0,
+                        batch_size=1,
+                        pin_memory=True
+            )
 
     def val_dataloader(self):
-        return DataLoader(self.val_dataset_g,
-                          shuffle=False,
-                          num_workers=0,
-                          batch_size=1, # validate one image (H*W rays) at a time
-                          pin_memory=True)
+
+        if self.f_to_g and not self.g_to_f:
+            return DataLoader(self.val_dataset_f,
+                            shuffle=False,
+                            num_workers=0,
+                            batch_size=1, # validate one image (H*W rays) at a time
+                            pin_memory=True)
+        else:
+            return DataLoader(self.val_dataset_g,
+                            shuffle=False,
+                            num_workers=0,
+                            batch_size=1, # validate one image (H*W rays) at a time
+                            pin_memory=True) 
 
     def common_training_step(self, batch, mode = "f_to_g"):
 
-        img = batch['rgbs']
-        alt_pose = batch['alt_poses']
-        batch_size = img.shape[0]
-        img = img[0]
-        alt_pose = alt_pose[0]
+        img = batch['rgbs'][0]
+        alt_pose = batch['alt_poses'][0]
+        gt_pose = batch['gt_poses'][0]
 
         if self.hparams.lamda > 0:
             masks = batch['masks'][0]
             depths = batch['depths'][0]
         
-        if self.hparams.relative_pose_mode == "f_to_g":
+        if mode == "f_to_g":
             c2w = torch.mm(alt_pose, torch.inverse(self.relative_pose(0)))
-        elif self.hparams.relative_pose_mode == "g_to_f":
+        elif mode == "g_to_f":
             c2w = torch.mm(self.relative_pose(0), alt_pose)
         else:
             raise ValueError("Mode of relative pose transformation not defined properly")
+
+        with torch.no_grad():
+            pose_loss, _ = pose_metrics(c2w, gt_pose)
 
         c2w = c2w[:3, :4] 
 
@@ -254,7 +326,7 @@ class NeRFSystem(LightningModule):
             depths = depths.view(-1)
             masks = masks.view(-1)
 
-        results = self(rays)
+        results = self(rays, mode)
         rgb_results = {k: v for k, v in results.items() if 'rgb' in k}
         loss_rgb = self.loss[0](rgb_results, rgbs)
 
@@ -268,48 +340,65 @@ class NeRFSystem(LightningModule):
         
         if self.hparams.lamda > 0:
             loss = loss_rgb + self.hparams.lamda*loss_depth
-            return loss, loss_rgb, loss_depth
+            return pose_loss, loss, loss_rgb, loss_depth
         else:
             loss = loss_rgb
-            return loss, loss_rgb, 0
+            return pose_loss,loss, loss_rgb, 0
 
     def training_step(self, batch, batch_nb):
 
+        batch_x = {}
+        if not ('data_f' in batch.keys() and 'data_g' in batch.keys()):
+            if self.f_to_g and not self.g_to_f:
+                batch_x['data_f'] = batch
+            elif self.g_to_f and not self.f_to_g:
+                batch_x['data_g'] = batch
+        else:
+            batch_x = batch      
+
         if self.f_to_g:
-            loss, loss_rgb, loss_depth = self.common_training_step(batch['data_f'])
+            pose_loss, loss, loss_rgb, loss_depth = self.common_training_step(batch_x['data_f'], mode = "f_to_g")
 
         if self.g_to_f:
             if self.f_to_g:
-                loss_f, loss_rgb_f, loss_depth_f = self.common_training_step(batch['data_g'])
-                loss, loss_rgb, loss_depth = loss + loss_f, loss_rgb + loss_rgb_f, loss_depth + loss_depth_f
+                pose_loss_f, loss_f, loss_rgb_f, loss_depth_f = self.common_training_step(batch_x['data_g'], mode = "g_to_f")
+                pose_loss, loss, loss_rgb, loss_depth = pose_loss + pose_loss_f, loss + loss_f, loss_rgb + loss_rgb_f, loss_depth + loss_depth_f
             else:
-                loss, loss_rgb, loss_depth = self.common_training_step(batch['nerf_g'])
+                pose_loss, loss, loss_rgb, loss_depth = self.common_training_step(batch_x['data_g'], mode = "g_to_f")
 
         self.log('lr', get_learning_rate(self.optimizer))
         self.log('train/rgb_loss', loss_rgb)
         if self.hparams.lamda > 0:
             self.log('train/depth_loss', loss_depth)
         self.log('train/loss', loss)
-        # self.log('train/psnr', psnr_, prog_bar=True)
+        #self.log('train/psnr', psnr_, prog_bar=True)
+        self.log('train/poss_loss', pose_loss)
 
         return loss
 
     def validation_step(self, batch, batch_nb):
 
-        idx = batch['idx'].detach().cpu().numpy()[0]
-        img = batch['rgbs']
-        alt_pose = batch['alt_poses']
-        img = img[0]
-        alt_pose = alt_pose[0]
+        if self.f_to_g:
+            mode = "f_to_g"
+
+        if self.g_to_f:
+            mode = "g_to_f"
+
+        img = batch['rgbs'][0]
+        alt_pose = batch['alt_poses'][0]
+        gt_pose = batch['gt_poses'][0]
 
         if self.hparams.lamda > 0:
             masks = batch['masks'][0]
             depths = batch['depths'][0]
 
-        if self.hparams.relative_pose_mode == "f_to_g":
+        if mode == "f_to_g":
             c2w = torch.mm(alt_pose, torch.inverse(self.relative_pose(0, stage = "val")))
-        elif self.hparams.relative_pose_mode == "g_to_f":
+        elif mode == "g_to_f":
             c2w = torch.mm(self.relative_pose(0, stage="val"), alt_pose)
+
+        with torch.no_grad():
+            pose_loss, _ = pose_metrics(c2w, gt_pose)
 
         c2w = c2w[:3, :4]
 
@@ -326,7 +415,7 @@ class NeRFSystem(LightningModule):
             depths = depths.view(-1)
             masks = masks.view(-1)
 
-        results = self(rays)
+        results = self(rays, mode)
         rgb_results = {k: v for k, v in results.items() if 'rgb' in k}
         
         if self.hparams.lamda > 0:
@@ -362,7 +451,8 @@ class NeRFSystem(LightningModule):
                                     stack, self.current_epoch)
 
         psnr_ = psnr(results[f'rgb_{typ}'], rgbs)
-        log['val_psnr'] = psnr_
+        log['val_psnr'] = psnr_ 
+        log['pose_loss'] = pose_loss
 
         return log
 
@@ -373,12 +463,14 @@ class NeRFSystem(LightningModule):
             mean_depth_loss = torch.stack([x['val_depth_loss'] for x in outputs]).mean()
         
         mean_psnr = torch.stack([x['val_psnr'] for x in outputs]).mean()
+        mean_pose_loss = torch.stack([x['pose_loss'] for x in outputs]).mean()
 
         self.log('val/rgb_loss', mean_rgb_loss)
         if self.hparams.lamda > 0:
             self.log('val/depth_loss', mean_depth_loss)
 
         self.log('val/psnr', mean_psnr, prog_bar=True)
+        self.log('val/pose_loss', mean_pose_loss, prog_bar=False)
 
 
 def main(hparams):

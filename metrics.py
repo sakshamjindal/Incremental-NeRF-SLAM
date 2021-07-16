@@ -37,7 +37,7 @@ def pose_metrics(c2w, gt_pose):
     q2 = Quaternion(q2)
 
     # geodesical distance given by logmap(quaternion)
-    quat_dist = Quaternion.distance(q1, q1)
+    quat_dist = Quaternion.distance(q1, q2)
 
     quat_dist = torch.FloatTensor([quat_dist])
 

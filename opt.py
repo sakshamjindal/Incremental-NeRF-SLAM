@@ -76,7 +76,7 @@ def get_opts():
                         help='experiment name')
 
 
-    # Used for inverse nerf and relative nerf computations
+    # Used for inverse nerf computations
     parser.add_argument('--poses_to_train', nargs="+", type = int, default=[29],
                         help='nposes to train in inverse nerf')
     parser.add_argument('--poses_to_val', nargs="+", type = int, default=[29],
@@ -89,16 +89,36 @@ def get_opts():
                         help='enable pose optimization')      
     parser.add_argument('--pose_params_path', type=str, default=None,
                         help='pretrained checkpoint to load the poses(including optimizers, etc)')
-    parser.add_argument('--relative_pose_weight_path', type=str, default=None,
-                        help='pretrained checkpoint to load the relative poses(including optimizers, etc)')
     parser.add_argument('--prefixes_to_ignore', nargs='+', type=str, default=['loss'],
                         help='the prefixes to ignore in the checkpoint state dict')
     parser.add_argument('--weight_path', type=str, default=None,
                         help='pretrained model weight to load (do not load optimizers, etc)')
-    parser.add_argument('--relative_pose_mode', type=str, default="f_to_g",
-                        help='defines whether you are trying to find rel. poses from f to g or g to f)')
-    # parser.add_argument('--optimised_poses', nargs="+", type = int, default=[29],
-    #                     help='number of gpus')    
+    
+    
+    # Used for relative nerf pose computations
+    parser.add_argument('--mode', type=str, default='f_to_g',
+                        help='relative nerf mode')
+                        
+    parser.add_argument('--poses_to_train_f', nargs="+", type = int, default=[29],
+                        help='nposes to train in inverse nerf')
+    parser.add_argument('--poses_to_val_f', nargs="+", type = int, default=[29],
+                        help='poses to validate in inverse nerf')
+    parser.add_argument('--optimised_poses_f', nargs="+", type = int, default=[29],
+                        help='number of gpus')
+    parser.add_argument('--nerf_f_pose_path', type=str, default=None,
+                        help='pretrained checkpoint to load the poses(including optimizers, etc)')
+
+    parser.add_argument('--poses_to_train_g', nargs="+", type = int, default=[29],
+                        help='nposes to train in inverse nerf')
+    parser.add_argument('--poses_to_val_g', nargs="+", type = int, default=[29],
+                        help='poses to validate in inverse nerf')
+    parser.add_argument('--optimised_poses_g', nargs="+", type = int, default=[29],
+                        help='number of gpus')
+    parser.add_argument('--nerf_g_pose_path', type=str, default=None,
+                        help='pretrained checkpoint to load the poses(including optimizers, etc)')
+    # parser.add_argument('--relative_pose_weight_path', type=str, default=None,
+    #                     help='pretrained checkpoint to load the relative poses(including optimizers, etc)')
+
     return parser.parse_args()
 
 

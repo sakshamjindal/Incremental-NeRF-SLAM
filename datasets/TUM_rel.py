@@ -141,22 +141,23 @@ class TUMDataset(Dataset):
         self.optimised_poses = sorted(optimised_poses)
 
         # read pose values from the optimised poses trained model
+        self.num_poses = len(self.optimised_poses)
         self.model_pose = LearnPose(self.num_poses, learn_R=False, learn_t=False, init_c2w = torch.zeros((self.num_poses, 4, 4)))
         self.model_pose = self.model_pose.cpu()
         self.model_pose.eval()
 
         for param in self.model_pose.parameters():
             param.requires_grad = False
-            self.poses_optimised = torch.load(pose_params_path)['state_dict']['poses_optimized']
-            self.poses_optimised = self.poses_optimised.tolist()
+            # self.poses_optimised = torch.load(pose_params_path)['state_dict']['poses_optimized']
+            # self.poses_optimised = self.poses_optimised.tolist()
 
         load_ckpt(self.model_pose, pose_params_path, 'model_pose')
 
-        assert self.poses_optimised == self.optimised_poses
+        # assert self.poses_optimised == self.optimised_poses
         
         self.model_poses = {}
 
-        for i, pose in enumerate(self.poses_optimized):
+        for i, pose in enumerate(self.optimised_poses):
             self.model_poses[pose] = self.model_pose(i)
 
         self.define_transforms()
@@ -174,16 +175,15 @@ class TUMDataset(Dataset):
 
         # Step 2: read poses from TUM dataloader
         # read extrinsics (of successfully reconstructed images)
-        dataset = TUM(self.root_dir, sequences = self.sequences, seqlen = 500, start = 56)
+        dataset = TUM(self.root_dir, sequences = self.sequences, seqlen = 100, start = 56)
         all_colors, all_depths, all_intrinsics, all_gt_poses, _, __, ___ = dataset[0]
 
         # Step 3: subset poses based on start, end and period
         # Right now doing using input parameters but the pipeline will be tweaked if
         # we are doing keyframe selection
-        poses = all_gt_poses[self.start:self.end:self.period]
+        poses = all_gt_poses[self.start:self.end:self.period, :, :]
 
         # Step4 : Processing poses now to feed into the algorithm
-        num_images = self.colors.shape[0]
         poses = poses.numpy() # (N_images, 3, 4) cam2world matrices
         poses = poses[:, :3].astype('float64') # (N_images, 3, 4) cam2world matrices
         all_gt_poses = all_gt_poses.numpy()
@@ -215,11 +215,11 @@ class TUMDataset(Dataset):
         self.all_gt_poses = convert3x4_4x4(self.all_gt_poses) # (All_images, 4, 4)
 
         self.all_rgbs = []
-        self.gt_poses = []
         self.all_depths = []
         self.all_masks = []
+        self.gt_poses = []
 
-        for i in range(self.optimised_poses):
+        for i in range(len(self.optimised_poses)):
 
                 pose_index = self.optimised_poses[i]
 
@@ -227,8 +227,8 @@ class TUMDataset(Dataset):
                 ## Ground truth poses
                 gt_pose = torch.FloatTensor(self.all_gt_poses[pose_index]).view(1, 4, 4) # (4, 4)
                 ## images and depths
-                img = self.colors[pose_index]
-                depth = self.depths[pose_index]            
+                img = all_colors[pose_index]
+                depth = all_depths[pose_index]            
 
                 img = Image.fromarray(img.numpy().astype('uint8')).convert('RGB')
                 img = img.resize(self.img_wh, Image.LANCZOS)
@@ -236,7 +236,6 @@ class TUMDataset(Dataset):
                 img = img.permute(1, 2, 0) # (h, w, 3) RGB
                 self.all_rgbs.append(img)
                 self.gt_poses.append(gt_pose)
-
                 depth = depth.squeeze(-1).numpy()
                 depth = cv2.resize(depth, (self.img_wh), interpolation = cv2.INTER_NEAREST)
                 mask = 1 - ((depth).astype('uint8'))==0        
@@ -264,11 +263,12 @@ class TUMDataset(Dataset):
     def __getitem__(self, idx):
 
         if self.split == 'train': # use data in the buffers
-            train_idx = self.poses_to_train[idx]
+            train_pose = self.poses_to_train[idx]
+            train_idx = self.optimised_poses.index(train_pose)
             sample = {
                 'idx' : idx,
-                'poses': self.gt_poses[train_idx],
-                'alt_poses' : self.model_poses[train_idx],
+                'gt_poses': self.gt_poses[train_idx],
+                'alt_poses' : self.model_poses[train_pose],
                 'rgbs': self.all_rgbs[train_idx],
                 'depths' : self.all_depths[train_idx],
                 'masks': self.all_masks[train_idx]
@@ -276,11 +276,12 @@ class TUMDataset(Dataset):
 
         else:
             if self.split == 'val':
-                val_idx = self.poses_to_val[idx]
+                val_pose = self.poses_to_val[idx]
+                val_idx = self.optimised_poses.index(val_pose)
                 return {
                     'idx' : idx,
-                    'poses': self.gt_poses[val_idx],
-                    'alt_poses' : self.model_poses[val_idx],
+                    'gt_poses': self.gt_poses[val_idx],
+                    'alt_poses' : self.model_poses[val_pose],
                     'rgbs': self.all_rgbs[val_idx],
                     'depths' : self.all_depths[val_idx],
                     'masks': self.all_masks[val_idx]
