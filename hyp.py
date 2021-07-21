@@ -9,3 +9,5 @@ period_g = 1
 end_g = 50
 #nerf_g_weight_path = "ckpts/tum_desk_exp25/epoch=36.ckpt"
 nerf_g_weight_path ="ckpts/tum_desk_exp24/epoch=23.ckpt"
+
+DEBUG = True

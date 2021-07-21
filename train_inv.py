@@ -2,7 +2,7 @@ from models.poses import LearnPose
 import os
 
 from pytorch_lightning import loggers
-from opt import get_opts, dataset_path, get_hparams
+from opt import get_opts, dataset_path
 import torch
 from collections import defaultdict
 from metrics import pose_metrics
@@ -26,41 +26,18 @@ from losses import loss_dict
 # metrics
 from metrics import *
 
-# import hyperparameters
-import hyp
-
 # pytorch-lightning
-from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
+from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning import LightningModule, Trainer
 from pytorch_lightning.loggers import TestTubeLogger
 
 
 class NeRFSystem(LightningModule):
-    def __init__(
-        self,
-        hparams,
-        inital_poses,
-        start = 0,
-        period = 0,
-        end = 1,
-        poses_to_train = [],
-        poses_to_val = [],
-        freeze_nerf = True,
-        pose_optimization = True,
-    ):
-        
+    def __init__(self, hparams):
         super(NeRFSystem, self).__init__()
 
         self.hparams = hparams
-        self.start = start
-        self.period = period
-        self.end = end
-        self.poses_to_train = poses_to_train
-        self.poses_to_val = poses_to_val
-        self.inital_poses = inital_poses
-        self.pose_optimization = pose_optimization
-        self.freeze_nerf = freeze_nerf
-
+        self.root_dir = self.hparams.root_dir
         self.sequences = "sequences.txt"
         self.img_wh = tuple(self.hparams.img_wh)
         self.train_rand_rows = 64
@@ -92,23 +69,23 @@ class NeRFSystem(LightningModule):
         self.nerf_coarse = NeRF()
         self.models = {'coarse': self.nerf_coarse}
 
-        if freeze_nerf:
+        if self.hparams.freeze_nerf:
             self.models["coarse"].eval()
             for param in self.models["coarse"].parameters():
                 param.requires_grad = False
 
-        #load_ckpt(self.nerf_coarse, hparams.weight_path, 'nerf_coarse')
+        load_ckpt(self.nerf_coarse, hparams.weight_path, 'nerf_coarse')
 
         if hparams.N_importance > 0:
             self.nerf_fine = NeRF()
             self.models['fine'] = self.nerf_fine
             
-            if freeze_nerf:
+            if self.hparams.freeze_nerf:
                 self.models["fine"].eval()
                 for param in self.models["fine"].parameters():
                     param.requires_grad = False
                     
-            #load_ckpt(self.nerf_fine, hparams.weight_path, 'nerf_fine')
+            load_ckpt(self.nerf_fine, hparams.weight_path, 'nerf_fine')
 
         self._setup()
 
@@ -146,22 +123,22 @@ class NeRFSystem(LightningModule):
         dataset = dataset_dict[self.hparams.dataset_name]
         kwargs = {'root_dir': dataset_path,
                   'img_wh': tuple(self.hparams.img_wh),
-                  'start': self.start,
-                  'end' : self.end,
-                  'period' : self.period,
-                  'poses_to_train' : self.poses_to_train,
-                  'poses_to_val' : self.poses_to_val,
-                  'initial_poses' : self.inital_poses,
+                  'start': self.hparams.start,
+                  'end' : self.hparams.end,
+                  'period' : self.hparams.period,
+                  'poses_to_train' : self.hparams.poses_to_train,
+                  'poses_to_val' : self.hparams.poses_to_val,
+                  'initial_poses' : self.hparams.initial_poses,
                   }
 
         self.train_dataset = dataset(split='train', **kwargs)
         self.val_dataset = dataset(split='val', **kwargs)
 
-        self.all_poses = self.train_dataset.all_poses
+        self.all_poses = self.train_dataset.all_initial_poses
         self.directions = self.train_dataset.directions
-        num_poses_to_train = len(self.poses_to_train)
+        num_poses_to_train = len(self.hparams.poses_to_train)
         
-        if self.pose_optimization:
+        if self.hparams.pose_optimization:
             self.model_pose = LearnPose(num_poses_to_train, learn_R=True, learn_t=True, init_c2w = self.all_poses)
         else:
             self.model_pose = LearnPose(num_poses_to_train, learn_R=False, learn_t=False, init_c2w = self.all_poses)
@@ -169,7 +146,7 @@ class NeRFSystem(LightningModule):
 
 
     def configure_optimizers(self):
-        if self.freeze_nerf:
+        if self.hparams.freeze_nerf:
             self.optimizer = get_optimizer(self.hparams, self.model_pose)
             scheduler = get_scheduler(self.hparams, self.optimizer)
         else:
@@ -341,136 +318,39 @@ class NeRFSystem(LightningModule):
         self.log('val/pose_loss', mean_pose_loss, prog_bar=False)
         self.log('val/quat_distance', mean_quat_distance, prog_bar=False)
 
-def get_logger_callback(exp_name, hparams):
-
-    checkpoint_callback = ModelCheckpoint(
-                                filepath=os.path.join(f'inc_ckpts/{exp_name}','{epoch:d}'), 
-                                monitor='val/psnr',
-                                mode='max',
-                                save_top_k=5
-                        )
-    early_stop_callback = EarlyStopping(
-                            monitor='val/psnr',
-                            min_delta=0.00,
-                            patience=3,
-                            verbose=False,
-                            mode='max'
-                        )
-    logger = TestTubeLogger(
-                save_dir="inc_logs",
-                name=exp_name,
-                debug=False,
-                create_git_tag=False,
-                log_graph=False
-            )
-
-    trainer = Trainer(
-                max_epochs=hparams.num_epochs, 
-                check_val_every_n_epoch = hparams.val_frequency,
-                checkpoint_callback= [checkpoint_callback, early_stop_callback], 
-                logger=logger,
-                weights_summary=None,
-                progress_bar_refresh_rate=1,
-                gpus=list(hparams.gpus),
-                #gpus = [1],
-                accelerator='ddp' if len(hparams.gpus)>1 else None,
-                num_sanity_val_steps=1,
-                benchmark=True,
-                profiler="simple" if len(hparams.gpus)==1 else None
-            )
-
-    return logger, checkpoint_callback, trainer
-
-
 
 def main(hparams):
+    system = NeRFSystem(hparams)
+    checkpoint_callback = \
+        ModelCheckpoint(filepath=os.path.join(f'inv_ckpts/{hparams.exp_name}',
+                                               '{epoch:d}'),
+                        monitor='val/psnr',
+                        mode='max',
+                        save_top_k=5)
 
-    if hyp.DEBUG:
-        from opt import get_hparams
-        hparams = get_hparams("commands.txt")
+    logger = TestTubeLogger(save_dir="inv_logs",
+                            name=hparams.exp_name,
+                            debug=False,
+                            create_git_tag=False,
+                            log_graph=False)
+    breakpoint()
 
-    logger, callback, trainer = get_logger_callback(exp_name = "pose_0", hparams = hparams)
-    # (initial)
-    poses = torch.FloatTensor([[ 1.,  0.,  0.,  0.], [ 0., 1.,  0.,  0.], [ 0.,  0., 1.,  0.], [ 0.,  0.,  0.,  1.]]).unsqueeze(0)
-    model_nerf = NeRFSystem(start = 0, period = 1, end = 1, poses_to_train = [0], poses_to_val = [0], 
-                       inital_poses = poses, freeze_nerf = False, pose_optimization = False, hparams=hparams)
-    trainer.fit(model_nerf)
+    trainer = Trainer(max_epochs=hparams.num_epochs,
+                      check_val_every_n_epoch = hparams.val_frequency,
+                      checkpoint_callback=checkpoint_callback,
+                      logger=logger,
+                      weights_summary=None,
+                      progress_bar_refresh_rate=1,
+                      gpus=hparams.gpus,
+                      #gpus = [1],
+                      accelerator='ddp' if len(hparams.gpus)>1 else None,
+                      num_sanity_val_steps=1,
+                      benchmark=True,
+                      profiler="simple" if len(hparams.gpus)==1 else None)
 
-
-    for i in range(1,5):
-
-        # pose optimisation first
-        logger, callback, trainer = get_logger_callback(exp_name = "pose_opt_{}".format(i), hparams = hparams)
-        poses = torch.cat([poses, poses[i-1].unsqueeze(0)], dim = 0)
-        model_pose = NeRFSystem(start = 0, period = 1, end = i + 1, poses_to_train = [i], poses_to_val = [i], 
-                       inital_poses = poses, freeze_nerf = True, pose_optimization = True, hparams=hparams)
-        load_ckpt(model_pose, model_nerf.state_dict(), 'nerf_coarse')
-        load_ckpt(model_pose, model_nerf.state_dict(), 'nerf_fine')
-        trainer.fit(model_pose)
-
-
-        # fine-tune the nerf ner after pose optimization
-        logger, callback, trainer = get_logger_callback(exp_name = "nerf_{}".format(i), hparams = hparams)
-        assert len(model_pose.model_pose.state_dict()["r"]) == 1
-
-        pose_model = LearnPose(1, learn_R=False, learn_t=False, init_c2w = poses[i-1].unsqueeze(0))
-        pose_model.eval()
-        load_ckpt(pose_model, model_pose.state_dict(), 'model_pose')
-        
-        with torch.no_grad():
-            optimized_pose = pose_model(0)
-
-        poses[i-1] = optimized_pose
-        poses_to_train = [index for index in range(1, i+1)]
-        poses_to_val = [i]
-        model_nerf = NeRFSystem(
-                        start = 0, period = 1, end = i + 1, poses_to_train = poses_to_train, poses_to_val = poses_to_val, 
-                        inital_poses = poses, freeze_nerf = False, pose_optimization = True, hparams=hparams
-                    )
-        trainer.fit(model_nerf)
+    trainer.fit(system)
 
 
 if __name__ == '__main__':
-
-    if hyp.DEBUG:
-        from opt import get_hparams
-        hparams = get_hparams("commands.txt")
-    else:
-        hparams = get_opts()
-        
+    hparams = get_opts()
     main(hparams)
-
-
-
-
-# pseudo code
-'''
-Steps
-1) initially take one frame and train a nerf with identity matrix as the first pose
-2) add one frame and optimise for pose using the above nerf weigths
-3) optimise for pose + nerf weights 
-4) repeat above steps in loop
-
-Pseduo Code
-
-- poses = []
-- trainer = Trainer()
-- init_dataset = dataset(start = 0, end = 0, poses_to_train = [0], poses_to_val=[0)
-  model = Nerf(init_dataset, optimise_pose = False, freeze_nerf = False)
-  Trainer.fit(model)
-  poses.append(identity_poses)
-
-- for i in range(1:):
-    
-    # pose optimisation first
-    poses.append(poses[i-1])
-    dataset = dataset(start = 0, end = i, poses_to_train = [i], poses_to_val[i], poses = poses)
-    model_pose = Nerf(optimise_pose = True, freeze_nerf = True, dataset)
-    model_pose.load_state_dict(model.state_dict)
-
-    #fine tune nerf
-    dataset = dataset(start = 0, end = 1, poses_to_train = [:i], poses_to_val[:i])
-    model_nerf = Nerf(optmise_pose = True, freeze_nerf= False)
-    model_nerf.load_state_dict(model_pose.state_dict)
-
-'''

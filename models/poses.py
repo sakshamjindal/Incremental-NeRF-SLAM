@@ -36,6 +36,6 @@ class LearnPose(nn.Module):
             c2w = c2w @ self.init_c2w[cam_id]
 
         if stage == "val":
-                print(c2w)
+            print(c2w)
 
         return c2w

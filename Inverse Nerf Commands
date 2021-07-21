@@ -1,7 +1,7 @@
 # Pose optimisation using nerf F from (0:1:30 .. 30 poses)
 ## --initial_poses "{25:23, 26:24, 27:25" means initiale pose 25 with 23,
 ## pose 26 with pose 24, pose 27 with pose 25 and so on ..
-CUDA_VISIBLE_DEVICES=0 python train.py \
+CUDA_VISIBLE_DEVICES=0 python train_inv.py \
    --dataset_name tum_inv \
    --root_dir "/scratch/saksham/data/tum/" \
    --freeze_nerf \
@@ -21,7 +21,7 @@ CUDA_VISIBLE_DEVICES=0 python train.py \
 
 # Pose optimisation using nerf G from (25:2:52 .. 13 poses)
 
-CUDA_VISIBLE_DEVICES=0 python train.py \
+CUDA_VISIBLE_DEVICES=0 python train_inv.py \
    --dataset_name tum_inv \
    --root_dir "/scratch/saksham/data/tum/" \
    --freeze_nerf \
