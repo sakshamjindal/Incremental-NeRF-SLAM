@@ -397,27 +397,28 @@ def main(hparams):
         from opt import get_hparams
         hparams = get_hparams("commands.txt")
 
-    trainer = get_trainer(exp_name = "nerf_0", hparams = hparams, max_epochs = 2000, resume_from_checkpoint = "/scratch/saksham/nerf_pl/inc_ckpts/nerf_0/epoch=1999.ckpt")
-    # (initial)
-    poses = torch.FloatTensor([[ 1.,  0.,  0.,  0.], [ 0., -1.,  0.,  0.], [ 0.,  0., -1.,  0.], [ 0.,  0.,  0.,  1.]]).unsqueeze(0)
-    model_nerf = NeRFSystem(start = 0, period = 1, end = 1, poses_to_train = [0], poses_to_val = [0], 
-                       inital_poses = poses, freeze_nerf = False, pose_optimization = False, hparams=hparams)
-    trainer.fit(model_nerf)
-    checkpoint_nerf_ = model_nerf.state_dict()
-
-    if hyp.saved_params:
+    if not hyp.saved_params:
+        # (Initialise training from scractch)
+        trainer = get_trainer(exp_name = "nerf_0", hparams = hparams, max_epochs = 2000, resume_from_checkpoint = "/scratch/saksham/nerf_pl/inc_ckpts/nerf_0/epoch=1999.ckpt")
+        # (initial)
+        poses = torch.FloatTensor([[ 1.,  0.,  0.,  0.], [ 0., -1.,  0.,  0.], [ 0.,  0., -1.,  0.], [ 0.,  0.,  0.,  1.]]).unsqueeze(0)
+        model_nerf = NeRFSystem(start = 0, period = 1, end = 1, poses_to_train = [0], poses_to_val = [0], 
+                        inital_poses = poses, freeze_nerf = False, pose_optimization = False, hparams=hparams)
+        trainer.fit(model_nerf)
+        checkpoint_nerf_ = model_nerf.state_dict()
+        initial_index = 1
+    else:
+        # (Resume training from a saved dump)
         params = torch.load(hyp.saved_params)
         initial_index = params["index"] + 1
         checkpoint_nerf_ = params["nerf_weights"]
         poses = params["poses"]
         print("Resuming incremental training from index : {}".format(initial_index))
-    else:
-        initial_index = 1
 
     for i in range(initial_index,20):
 
         # pose optimisation first
-        trainer = get_trainer(exp_name = "pose_opt_{}".format(i), hparams = hparams, max_epochs = 100)
+        trainer = get_trainer(exp_name = "pose_opt_{}".format(i), hparams = hparams, max_epochs = 500)
         poses = torch.cat([poses, poses[i-1].unsqueeze(0)], dim = 0)
         poses_to_train = [i]
         poses_to_val = [i]
@@ -429,7 +430,7 @@ def main(hparams):
         checkpoint_pose_ = model_pose.state_dict()
 
         # fine-tune the nerf after pose optimization
-        trainer = get_trainer(exp_name = "nerf_{}".format(i), hparams = hparams, max_epochs = 100)
+        trainer = get_trainer(exp_name = "nerf_{}".format(i), hparams = hparams, max_epochs = 1000)
         assert len(model_pose.model_pose.state_dict()["r"]) == 1
 
         pose_model = LearnPose(1, learn_R=False, learn_t=False, init_c2w = poses[i-1].unsqueeze(0))
@@ -440,10 +441,10 @@ def main(hparams):
             optimized_pose = pose_model(0)
 
         poses[i] = optimized_pose
-        poses_to_train = [index for index in range(0, i+1)]
+        poses_to_train = [index for index in range(1, i+1)]
         poses_to_val = [i]
         model_nerf = NeRFSystem(
-                        start = 0, period = 1, end = i + 1, poses_to_train = [i], poses_to_val = [i], 
+                        start = 0, period = 1, end = i + 1, poses_to_train = poses_to_train, poses_to_val = poses_to_val, 
                         inital_poses = poses, freeze_nerf = False, pose_optimization = True, hparams=hparams
                     )
         load_ckpt(model_nerf, checkpoint_nerf_, 'nerf_coarse')
