@@ -1,3 +1,4 @@
+from pytorch_lightning import callbacks
 from models.poses import LearnPose
 import os
 
@@ -341,7 +342,7 @@ class NeRFSystem(LightningModule):
         self.log('val/pose_loss', mean_pose_loss, prog_bar=False)
         self.log('val/quat_distance', mean_quat_distance, prog_bar=False)
 
-def get_logger_callback(exp_name, hparams):
+def get_trainer(exp_name, hparams, max_epochs, resume_from_checkpoint = None):
 
     checkpoint_callback = ModelCheckpoint(
                                 filepath=os.path.join(f'inc_ckpts/{exp_name}','{epoch:d}'), 
@@ -356,78 +357,111 @@ def get_logger_callback(exp_name, hparams):
                             verbose=False,
                             mode='max'
                         )
-    logger = TestTubeLogger(
-                save_dir="inc_logs",
-                name=exp_name,
-                debug=False,
-                create_git_tag=False,
-                log_graph=False
-            )
+    
+    if resume_from_checkpoint is None:
+        logger = TestTubeLogger(
+                    save_dir="inc_logs",
+                    name=exp_name,
+                    debug=False,
+                    create_git_tag=False,
+                    log_graph=False
+                )
+        num_sanity_val_step = 1
+    else:
+        logger = None
+        num_sanity_val_step = 0
 
     trainer = Trainer(
-                max_epochs=hparams.num_epochs, 
+                max_epochs=max_epochs, 
+                resume_from_checkpoint = resume_from_checkpoint,
                 check_val_every_n_epoch = hparams.val_frequency,
-                checkpoint_callback= [checkpoint_callback, early_stop_callback], 
+                callbacks = [checkpoint_callback, early_stop_callback], 
                 logger=logger,
                 weights_summary=None,
                 progress_bar_refresh_rate=1,
                 gpus=list(hparams.gpus),
-                #gpus = [1],
                 accelerator='ddp' if len(hparams.gpus)>1 else None,
-                num_sanity_val_steps=1,
+                num_sanity_val_steps=num_sanity_val_step,
                 benchmark=True,
                 profiler="simple" if len(hparams.gpus)==1 else None
             )
 
-    return logger, checkpoint_callback, trainer
+    return trainer
 
 
 
 def main(hparams):
 
+    import hyp
     if hyp.DEBUG:
         from opt import get_hparams
         hparams = get_hparams("commands.txt")
 
-    logger, callback, trainer = get_logger_callback(exp_name = "pose_0", hparams = hparams)
+    trainer = get_trainer(exp_name = "nerf_0", hparams = hparams, max_epochs = 2000, resume_from_checkpoint = "/scratch/saksham/nerf_pl/inc_ckpts/nerf_0/epoch=1999.ckpt")
     # (initial)
-    poses = torch.FloatTensor([[ 1.,  0.,  0.,  0.], [ 0., 1.,  0.,  0.], [ 0.,  0., 1.,  0.], [ 0.,  0.,  0.,  1.]]).unsqueeze(0)
+    poses = torch.FloatTensor([[ 1.,  0.,  0.,  0.], [ 0., -1.,  0.,  0.], [ 0.,  0., -1.,  0.], [ 0.,  0.,  0.,  1.]]).unsqueeze(0)
     model_nerf = NeRFSystem(start = 0, period = 1, end = 1, poses_to_train = [0], poses_to_val = [0], 
                        inital_poses = poses, freeze_nerf = False, pose_optimization = False, hparams=hparams)
     trainer.fit(model_nerf)
+    checkpoint_nerf_ = model_nerf.state_dict()
 
+    if hyp.saved_params:
+        params = torch.load(hyp.saved_params)
+        initial_index = params["index"] + 1
+        checkpoint_nerf_ = params["nerf_weights"]
+        poses = params["poses"]
+        print("Resuming incremental training from index : {}".format(initial_index))
+    else:
+        initial_index = 1
 
-    for i in range(1,5):
+    for i in range(initial_index,20):
 
         # pose optimisation first
-        logger, callback, trainer = get_logger_callback(exp_name = "pose_opt_{}".format(i), hparams = hparams)
+        trainer = get_trainer(exp_name = "pose_opt_{}".format(i), hparams = hparams, max_epochs = 100)
         poses = torch.cat([poses, poses[i-1].unsqueeze(0)], dim = 0)
-        model_pose = NeRFSystem(start = 0, period = 1, end = i + 1, poses_to_train = [i], poses_to_val = [i], 
+        poses_to_train = [i]
+        poses_to_val = [i]
+        model_pose = NeRFSystem(start = 0, period = 1, end = i + 1, poses_to_train = poses_to_train, poses_to_val = poses_to_val, 
                        inital_poses = poses, freeze_nerf = True, pose_optimization = True, hparams=hparams)
-        load_ckpt(model_pose, model_nerf.state_dict(), 'nerf_coarse')
-        load_ckpt(model_pose, model_nerf.state_dict(), 'nerf_fine')
+        load_ckpt(model_pose, checkpoint_nerf_, 'nerf_coarse')
+        load_ckpt(model_pose, checkpoint_nerf_, 'nerf_fine')
         trainer.fit(model_pose)
+        checkpoint_pose_ = model_pose.state_dict()
 
-
-        # fine-tune the nerf ner after pose optimization
-        logger, callback, trainer = get_logger_callback(exp_name = "nerf_{}".format(i), hparams = hparams)
+        # fine-tune the nerf after pose optimization
+        trainer = get_trainer(exp_name = "nerf_{}".format(i), hparams = hparams, max_epochs = 100)
         assert len(model_pose.model_pose.state_dict()["r"]) == 1
 
         pose_model = LearnPose(1, learn_R=False, learn_t=False, init_c2w = poses[i-1].unsqueeze(0))
         pose_model.eval()
-        load_ckpt(pose_model, model_pose.state_dict(), 'model_pose')
+        load_ckpt(pose_model, checkpoint_pose_ , 'model_pose')
         
         with torch.no_grad():
             optimized_pose = pose_model(0)
 
-        poses[i-1] = optimized_pose
-        poses_to_train = [index for index in range(1, i+1)]
+        poses[i] = optimized_pose
+        poses_to_train = [index for index in range(0, i+1)]
         poses_to_val = [i]
         model_nerf = NeRFSystem(
-                        start = 0, period = 1, end = i + 1, poses_to_train = poses_to_train, poses_to_val = poses_to_val, 
+                        start = 0, period = 1, end = i + 1, poses_to_train = [i], poses_to_val = [i], 
                         inital_poses = poses, freeze_nerf = False, pose_optimization = True, hparams=hparams
                     )
+        load_ckpt(model_nerf, checkpoint_nerf_, 'nerf_coarse')
+        load_ckpt(model_nerf, checkpoint_nerf_, 'nerf_fine')
         trainer.fit(model_nerf)
+        checkpoint_nerf_ = model_nerf.state_dict()
+
+        save = {
+            "index" : i, 
+            "nerf_weights" : checkpoint_nerf_,
+            "poses" : poses
+        }
+
+        if not os.path.isdir("inc_nerf_dumps/{}".format(hyp.Exp_name)):
+            os.mkdir("inc_nerf_dumps/{}".format(hyp.Exp_name))
+
+        torch.save(save, "inc_nerf_dumps/{}/dumps_{}".format(hyp.Exp_name, i))
+
 
 
 if __name__ == '__main__':

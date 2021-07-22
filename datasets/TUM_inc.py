@@ -105,7 +105,7 @@ class TUMDataset(Dataset):
 
         ## COLMAP poses hasse rotation in form "right down front", change to "right up back"
         ## See https://github.com/bmild/nerf/issues/34
-        self.poses = np.concatenate([self.poses[..., 0:1], - self.poses[..., 1:3], self.poses[..., 3:4]], -1)
+        #self.poses = np.concatenate([self.poses[..., 0:1], - self.poses[..., 1:3], self.poses[..., 3:4]], -1)
         all_gt_poses = np.concatenate([all_gt_poses[..., 0:1], - all_gt_poses[..., 1:3], all_gt_poses[..., 3:4]], -1)
 
         ## Center the poses
