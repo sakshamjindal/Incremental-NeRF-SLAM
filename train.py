@@ -181,7 +181,7 @@ class NeRFSystem(LightningModule):
 
     def train_dataloader(self):
         return DataLoader(self.train_dataset,
-                          shuffle=False,
+                          shuffle=True,
                           num_workers=4,
                           batch_size=1,
                           pin_memory=True)
@@ -352,8 +352,8 @@ def get_trainer(exp_name, hparams, max_epochs, resume_from_checkpoint = None):
                         )
     early_stop_callback = EarlyStopping(
                             monitor='val/psnr',
-                            min_delta=0.00,
-                            patience=3,
+                            min_delta=0.5,
+                            patience=2,
                             verbose=False,
                             mode='max'
                         )
@@ -367,15 +367,17 @@ def get_trainer(exp_name, hparams, max_epochs, resume_from_checkpoint = None):
                     log_graph=False
                 )
         num_sanity_val_step = 1
+        callbacks = [checkpoint_callback, early_stop_callback]
     else:
         logger = None
         num_sanity_val_step = 0
+        callbacks = None
 
     trainer = Trainer(
                 max_epochs=max_epochs, 
                 resume_from_checkpoint = resume_from_checkpoint,
                 check_val_every_n_epoch = hparams.val_frequency,
-                callbacks = [checkpoint_callback, early_stop_callback], 
+                callbacks = callbacks, 
                 logger=logger,
                 weights_summary=None,
                 progress_bar_refresh_rate=1,
@@ -430,7 +432,7 @@ def main(hparams):
         checkpoint_pose_ = model_pose.state_dict()
 
         # fine-tune the nerf after pose optimization
-        trainer = get_trainer(exp_name = "nerf_{}".format(i), hparams = hparams, max_epochs = 1000)
+        trainer = get_trainer(exp_name = "nerf_{}".format(i), hparams = hparams, max_epochs = 500)
         assert len(model_pose.model_pose.state_dict()["r"]) == 1
 
         pose_model = LearnPose(1, learn_R=False, learn_t=False, init_c2w = poses[i-1].unsqueeze(0))
@@ -441,7 +443,14 @@ def main(hparams):
             optimized_pose = pose_model(0)
 
         poses[i] = optimized_pose
-        poses_to_train = [index for index in range(1, i+1)]
+
+        if i >= 5 :
+            poses_to_train = list(np.linspace(1, i, 5, dtype=int))
+        else:
+            poses_to_train = [index for index in range(1, i+1)]
+        
+        print("Finetuning Nerf for poses : {} ".format(poses_to_train))
+
         poses_to_val = [i]
         model_nerf = NeRFSystem(
                         start = 0, period = 1, end = i + 1, poses_to_train = poses_to_train, poses_to_val = poses_to_val, 
@@ -451,6 +460,14 @@ def main(hparams):
         load_ckpt(model_nerf, checkpoint_nerf_, 'nerf_fine')
         trainer.fit(model_nerf)
         checkpoint_nerf_ = model_nerf.state_dict()
+
+        pose_model = LearnPose(len(poses_to_train), learn_R=False, learn_t=False, init_c2w = poses[poses_to_train])
+        pose_model.eval()
+        load_ckpt(pose_model, checkpoint_nerf_ , 'model_pose')
+
+        with torch.no_grad():
+            for ind, pose in enumerate(poses_to_train):
+                poses[pose] = pose_model(ind)
 
         save = {
             "index" : i, 

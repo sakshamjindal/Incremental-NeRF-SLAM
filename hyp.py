@@ -13,5 +13,4 @@ nerf_g_weight_path ="ckpts/tum_desk_exp24/epoch=23.ckpt"
 DEBUG = True
 Exp_name = "Exp1"
 #saved_params = None
-saved_params = "inc_nerf_dumps/Exp1/dumps_1"
-
+saved_params = "inc_nerf_dumps/Exp1/dumps_4"
