@@ -140,7 +140,7 @@ class TUMDataset(Dataset):
             poses_to_consider = self.poses_to_val
 
         for i in range(len(poses_to_consider)):
-
+#                 print("pose_conisder",poses_to_consider)
                 pose_index = poses_to_consider[i]
 
                 ## Initialisation of poses to optimise
@@ -172,6 +172,7 @@ class TUMDataset(Dataset):
                 self.all_masks.append(mask)
 
         self.all_poses = torch.cat(self.all_poses, dim = 0)
+#         print("all_poses",self.all_poses.shape)
         self.all_gt_poses = torch.cat(self.all_gt_poses, dim = 0)
         assert len(self.all_rgbs) > 0 and len(self.all_poses) > 0 and len(self.all_depths) > 0 and len(self.all_masks) > 0
 
@@ -189,6 +190,7 @@ class TUMDataset(Dataset):
         if self.split == "train":
             pose_number = self.poses_to_train[idx]
             positional_index = self.poses_to_train.index(pose_number)
+#             print("pose_all",self.all_poses)
         elif self.split == "val":
             pose_number = self.poses_to_val[idx]
             positional_index = self.poses_to_train.index(pose_number)

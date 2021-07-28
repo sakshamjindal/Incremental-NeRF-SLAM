@@ -10,7 +10,8 @@ end_g = 50
 #nerf_g_weight_path = "ckpts/tum_desk_exp25/epoch=36.ckpt"
 nerf_g_weight_path ="ckpts/tum_desk_exp24/epoch=23.ckpt"
 
-DEBUG = True
-Exp_name = "Exp1"
-#saved_params = None
-saved_params = "inc_nerf_dumps/Exp1/dumps_4"
+DEBUG = False
+#Exp_name = "Exp1"
+Exp_name = "Exp2_siren"
+saved_params = None
+#saved_params = "inc_nerf_dumps/Exp1/dumps_4"
