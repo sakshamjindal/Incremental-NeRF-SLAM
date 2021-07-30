@@ -7,6 +7,7 @@ from .llff_TUM import *
 from .TUM_inv import *
 from .TUM_rel import *
 from .TUM_inc import *
+from .TUM_inc_1 import *
 from .TUM import TUMDataset
 
 dataset_dict = {'blender': BlenderDataset,
@@ -15,6 +16,7 @@ dataset_dict = {'blender': BlenderDataset,
                 'tum_inv' : TUM_inv.TUMDataset,
                 'tum_rel' : TUM_rel.TUMDataset,
                 'tum_inc' : TUM_inc.TUMDataset,
+                'tum_inc_1' : TUM_inc_1.TUMDataset,
                 'llff_non_ndc' : llff_non_ndc.LLFFDataset,
                 'llff_TUM' : llff_TUM.LLFFDataset
                 }

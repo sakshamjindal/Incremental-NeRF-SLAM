@@ -7,7 +7,7 @@ import os
 import cv2
 from PIL import Image
 from torchvision import transforms as T
-from typing import List, Optional
+from typing import Optional
 
 from .ray_utils import *
 from .colmap_utils import \
@@ -44,10 +44,12 @@ class TUMDataset(Dataset):
     def __init__(self, 
         root_dir,
         initial_poses : torch.Tensor,
-        pose_indexes = [],
         sequences = "sequences.txt",
         split='train',
         img_wh=(640, 480),
+        start: Optional[int] = None,
+        period: Optional[int] = 1,
+        end: Optional[int] = None,
         poses_to_train = [],
         poses_to_val = []
     ):
@@ -61,12 +63,14 @@ class TUMDataset(Dataset):
         self.sequences = sequences
         self.split = split
         self.img_wh = img_wh
+        self.start = start
+        self.end = end
+        self.period = period
 
         self.poses_to_train = sorted(poses_to_train)
         self.poses_to_val = sorted(poses_to_val)
 
         self.poses = initial_poses
-        self.pose_indexes = pose_indexes
 
         self.define_transforms()
 
@@ -89,20 +93,20 @@ class TUMDataset(Dataset):
         # Step 3: subset poses based on start, end and period
         # Right now doing using input parameters but the pipeline will be tweaked if
         # we are doing keyframe selection
-        # all_gt_poses = all_gt_poses[self.poses_to_train]
+        all_gt_poses = all_gt_poses[self.start:self.end:self.period, :, :]
         # Step4 : Processing poses now to feed into the algorithm
         
         num_images = all_colors.shape[0]
-        self.poses = self.poses.numpy() # (N_images, 4, 4) cam2world matrices
-        # self.poses = self.poses[:, :3].astype('float64') # (N_images, 3, 4) cam2world matrices
-        # all_gt_poses = all_gt_poses.numpy()
-        # all_gt_poses = all_gt_poses[:, :3].astype('float64') # (All_images, 3, 4) cam2world matrices
+        self.poses = self.poses.numpy() # (N_images, 3, 4) cam2world matrices
+        self.poses = self.poses[:, :3].astype('float64') # (N_images, 3, 4) cam2world matrices
+        all_gt_poses = all_gt_poses.numpy()
+        all_gt_poses = all_gt_poses[:, :3].astype('float64') # (All_images, 3, 4) cam2world matrices
 
 
         ## COLMAP poses hasse rotation in form "right down front", change to "right up back"
         ## See https://github.com/bmild/nerf/issues/34
         #self.poses = np.concatenate([self.poses[..., 0:1], - self.poses[..., 1:3], self.poses[..., 3:4]], -1)
-        # all_gt_poses = np.concatenate([all_gt_poses[..., 0:1], - all_gt_poses[..., 1:3], all_gt_poses[..., 3:4]], -1)
+        all_gt_poses = np.concatenate([all_gt_poses[..., 0:1], - all_gt_poses[..., 1:3], all_gt_poses[..., 3:4]], -1)
 
         ## Center the poses
         # self.poses, avg_pose = center_poses(poses)
@@ -114,15 +118,15 @@ class TUMDataset(Dataset):
         # Step 5: correct scale so that the max depth is little closer (less than) 1.0
         scale_factor = 3.59949474527
         self.scale_factor = scale_factor
-        #all_gt_poses[..., 3] /= scale_factor
+        all_gt_poses[..., 3] /= scale_factor
 
         ## ray directions for all pixels, same for all images (same H, W, focal)
         self.directions = \
             get_ray_directions(self.img_wh[1], self.img_wh[0], self.focal) # (H, W, 3)
 
         ## convert from 3x4 form to 4x4 form
-        #all_gt_poses = convert3x4_4x4(all_gt_poses) # (All_images, 4, 4)
-        # self.poses = convert3x4_4x4(self.poses) # (All_images, 4, 4)
+        all_gt_poses = convert3x4_4x4(all_gt_poses) # (All_images, 4, 4)
+        self.poses = convert3x4_4x4(self.poses) # (All_images, 4, 4)
 
         self.all_rgbs = []
         self.all_poses = []
@@ -138,13 +142,11 @@ class TUMDataset(Dataset):
         for i in range(len(poses_to_consider)):
 
                 pose_index = poses_to_consider[i]
-                positional_index = self.pose_indexes.index(pose_index)
 
                 ## Initialisation of poses to optimise
-                c2w = torch.FloatTensor(self.poses[positional_index]).view(1, 4, 4) # (4, 4)
-                
+                c2w = torch.FloatTensor(self.poses[pose_index]).view(1, 4, 4) # (4, 4)
                 ## Ground truth poses
-                #gt_pose = torch.FloatTensor(all_gt_poses[pose_index]).view(1, 4, 4) # (4, 4)
+                gt_pose = torch.FloatTensor(all_gt_poses[pose_index]).view(1, 4, 4) # (4, 4)
                 ## images and depths
                 img = all_colors[pose_index]
                 depth = all_depths[pose_index]            
@@ -155,7 +157,7 @@ class TUMDataset(Dataset):
                 img = img.permute(1, 2, 0) # (h, w, 3) RGB
                 self.all_rgbs.append(img)
                 self.all_poses.append(c2w)
-                #self.all_gt_poses.append(gt_pose)
+                self.all_gt_poses.append(gt_pose)
 
                 depth = depth.squeeze(-1).numpy()
                 depth = cv2.resize(depth, (self.img_wh), interpolation = cv2.INTER_NEAREST)
@@ -170,7 +172,7 @@ class TUMDataset(Dataset):
                 self.all_masks.append(mask)
 
         self.all_poses = torch.cat(self.all_poses, dim = 0)
-        #self.all_gt_poses = torch.cat(self.all_gt_poses, dim = 0)
+        self.all_gt_poses = torch.cat(self.all_gt_poses, dim = 0)
         assert len(self.all_rgbs) > 0 and len(self.all_poses) > 0 and len(self.all_depths) > 0 and len(self.all_masks) > 0
 
     def define_transforms(self):
@@ -192,10 +194,9 @@ class TUMDataset(Dataset):
             positional_index = self.poses_to_train.index(pose_number)
 
         sample = {
-            'pose_index' : pose_number,
             'idx' : positional_index,
             'poses': self.all_poses[idx],
-            #'gt_poses': self.all_gt_poses[idx],
+            'gt_poses': self.all_gt_poses[idx],
             'rgbs': self.all_rgbs[idx],
             'depths' : self.all_depths[idx],
             'masks': self.all_masks[idx]

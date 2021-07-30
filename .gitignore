@@ -1,8 +1,6 @@
 .vscode/
 pytorch3d/
 logs/
-inc_logs_siren/
-2_inc_logs_siren/
 nerf_ckpts/
 inv_ckpts/
 inv_logs/
@@ -11,11 +9,7 @@ rel_logs/
 rel_ckpts/
 inc_logs/
 inc_ckpts/
-inc_ckpts_nerf/
-inc_ckpts_siren/
-2_inc_ckpts_siren/
 inc_nerf_dumps/
-inc_nerf_dumps_siren/
 results/*/*
 *.plys
 *.vol
