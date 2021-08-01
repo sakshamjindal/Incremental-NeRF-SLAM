@@ -284,16 +284,18 @@ class NeRFSystem(LightningModule):
         r_id = torch.randperm(self.H, device = c2w.device)[:self.train_rand_rows]  # (N_select_rows)
         c_id = torch.randperm(self.W, device = c2w.device)[:self.train_rand_cols]  # (N_select_cols)
         img = img[r_id][:, c_id]
-        depths = depths[r_id][:, c_id]
-        masks = masks[r_id][:, c_id]
+        if self.hparams.lamda > 0:
+            depths = depths[r_id][:, c_id]
+            masks = masks[r_id][:, c_id]
         ray_selected_cam = self.directions[r_id][:, c_id].to(c2w.device)  # (N_select_rows, N_select_cols, 3)
         rays_o, rays_d = get_rays(ray_selected_cam, c2w) # both (h*w, 3)
         rays = torch.cat([rays_o, rays_d, self.near*torch.ones_like(rays_o[:, :1]), self.far*torch.ones_like(rays_o[:, :1])], dim = 1)
 
         # reshaping for calculating losses
         rgbs = img.view(-1, 3)
-        depths = depths.view(-1)
-        masks = masks.view(-1)
+        if self.hparams.lamda > 0:
+            depths = depths.view(-1)
+            masks = masks.view(-1)
 
         results = self(rays)
         rgb_results = {k: v for k, v in results.items() if 'rgb' in k}
@@ -365,8 +367,10 @@ class NeRFSystem(LightningModule):
         # rays = rays.squeeze() # (H*W, 3)
         rgbs = img.view(-1, 3) # (H*W, 3)
         rgbs = img.view(-1, 3)
-        depths = depths.view(-1)
-        masks = masks.view(-1)
+
+        if self.hparams.lamda > 0:
+            depths = depths.view(-1)
+            masks = masks.view(-1)
 
         results = self(rays)
         rgb_results = {k: v for k, v in results.items() if 'rgb' in k}
@@ -411,11 +415,15 @@ class NeRFSystem(LightningModule):
 
     def validation_epoch_end(self, outputs):
 
+
         mean_rgb_loss = torch.stack([x['val_rgb_loss'] for x in outputs]).mean()
         if self.hparams.lamda > 0:
             mean_depth_loss = torch.stack([x['val_depth_loss'] for x in outputs]).mean()
         
         mean_psnr = torch.stack([x['val_psnr'] for x in outputs]).mean()
+
+        if self.current_epoch == 0 and mean_psnr is not None:
+            self.initial_psnr = mean_psnr.item()
         # mean_pose_loss = torch.stack([x['pose_loss'] for x in outputs]).mean()
         # mean_quat_distance = torch.stack([x['quat_distance'] for x in outputs]).mean()
 
@@ -427,7 +435,7 @@ class NeRFSystem(LightningModule):
         # self.log('val/pose_loss', mean_pose_loss, prog_bar=False)
         # self.log('val/quat_distance', mean_quat_distance, prog_bar=False)
 
-def get_trainer(dir_name, exp_name, hparams, max_epochs, min_delta = 0.5, resume_from_checkpoint = None):
+def get_trainer(iter_num, dir_name, exp_name, hparams, max_epochs, min_delta = 0.4, resume_from_checkpoint = None):
 
     checkpoint_callback = ModelCheckpoint(
                                 filepath=os.path.join(f'inc_ckpts/{dir_name}/{exp_name}','{epoch:d}'), 
@@ -435,6 +443,7 @@ def get_trainer(dir_name, exp_name, hparams, max_epochs, min_delta = 0.5, resume
                                 mode='max',
                                 save_top_k=5
                         )
+
     early_stop_callback = EarlyStopping(
                             monitor='val/psnr',
                             min_delta=min_delta,
@@ -457,6 +466,10 @@ def get_trainer(dir_name, exp_name, hparams, max_epochs, min_delta = 0.5, resume
         logger = None
         num_sanity_val_step = 0
         callbacks = None
+
+    if iter_num < 3:
+        # No Early Stopping for first 3 iterations
+        callbacks = [checkpoint_callback]
 
     trainer = Trainer(
                 max_epochs=max_epochs, 
@@ -486,10 +499,12 @@ def main(hparams):
 
     if not hyp.saved_params:
         keyframe_indexes = [hyp.start_g]
+        initial_psnr_model = []
+        initial_psnr_pose = []
         # (Initialise training from scractch)
-        trainer = get_trainer(dir_name = hyp.exp_name,
+        trainer = get_trainer(0, dir_name = hyp.exp_name,
                               exp_name = "nerf_{}".format(hyp.start_g), 
-                              hparams = hparams, min_delta = 0.0, max_epochs = 2000)
+                              hparams = hparams, max_epochs = 2000)
         poses = torch.FloatTensor([[ 1.,  0.,  0.,  0.], [ 0., -1.,  0.,  0.], [ 0.,  0., -1.,  0.], [ 0.,  0.,  0.,  1.]]).unsqueeze(0)
         model_nerf = NeRFSystem(poses_to_train = [hyp.start_g], poses_to_val = [hyp.start_g], 
                                 inital_poses = poses, keyframe_indexes = keyframe_indexes, 
@@ -498,7 +513,8 @@ def main(hparams):
         trainer.fit(model_nerf)
         checkpoint_nerf_ = model_nerf.state_dict()
         initial_index = 1
-        save_nerf_params(0, hyp, poses, checkpoint_nerf_, keyframe_indexes)
+        initial_psnr_model.append(model_nerf.initial_psnr)
+        save_nerf_params(0, hyp, poses, checkpoint_nerf_, keyframe_indexes, initial_psnr_model, initial_psnr_pose)
     else:
         # (Resume training from a serialized object)
         params = torch.load(hyp.saved_params)
@@ -506,6 +522,8 @@ def main(hparams):
         checkpoint_nerf_ = params["nerf_weights"]
         poses = params["poses"]
         keyframe_indexes = params["poses_trained"]
+        initial_psnr_model = params["initial_psnr_model"]
+        initial_psnr_pose = params["initial_psnr_pose"]
         print("Resuming incremental training from index : {}".format(initial_index))
 
     for i in range(initial_index, hyp.end_g - hyp.start_g):
@@ -514,23 +532,24 @@ def main(hparams):
         keyframe_indexes.append(hyp.start_g + i) # contains global indexed of all keyframes trained
 
         # pose optimisation first
-        trainer = get_trainer(dir_name = hyp.exp_name, exp_name = "pose_opt_{}".format(i + hyp.start_g), hparams = hparams, max_epochs = 1000)
+        trainer = get_trainer(i, dir_name = hyp.exp_name, exp_name = "pose_opt_{}".format(i + hyp.start_g), hparams = hparams, max_epochs = 1000)
         poses = torch.cat([poses, poses[i-1].unsqueeze(0)], dim = 0)
         poses_to_train = [i + hyp.start_g]
         poses_to_val = [i + hyp.start_g]
         model_pose = NeRFSystem(
                         poses_to_train = poses_to_train, poses_to_val = poses_to_val, 
                         inital_poses = poses, keyframe_indexes = keyframe_indexes, 
-                        freeze_nerf = True, pose_optimization = True, relative_pose_optimization = True,
+                        freeze_nerf = True, pose_optimization = True, relative_pose_optimization = hyp.relative_pose_optimisation,
                         hparams=hparams
                     )
         load_ckpt(model_pose, checkpoint_nerf_, 'nerf_coarse')
         load_ckpt(model_pose, checkpoint_nerf_, 'nerf_fine')
         trainer.fit(model_pose)
         checkpoint_pose_ = model_pose.state_dict()
+        initial_psnr_pose.append(model_pose.initial_psnr)
 
         # fine-tune the nerf after pose optimization
-        trainer = get_trainer(dir_name = hyp.exp_name, exp_name = "nerf_{}".format(i + hyp.start_g), hparams = hparams, max_epochs = 1000)
+        trainer = get_trainer(i, dir_name = hyp.exp_name, exp_name = "nerf_{}".format(i + hyp.start_g), hparams = hparams, max_epochs = 1000)
         assert len(model_pose.model_pose.state_dict()["r"]) == 1
 
         pose_model = LearnPose(1, learn_R=False, learn_t=False, init_c2w = poses[i-1].unsqueeze(0))
@@ -549,7 +568,7 @@ def main(hparams):
         model_nerf = NeRFSystem(
                         poses_to_train = poses_to_train_global, poses_to_val = poses_to_val, 
                         inital_poses = poses, keyframe_indexes = keyframe_indexes,
-                        freeze_nerf = False, pose_optimization = True, relative_pose_optimization = True,
+                        freeze_nerf = False, pose_optimization = True, relative_pose_optimization = hyp.relative_pose_optimisation,
                         hparams=hparams
                     )
         load_ckpt(model_nerf, checkpoint_nerf_, 'nerf_coarse')
@@ -565,15 +584,18 @@ def main(hparams):
             for ind, pose in enumerate(poses_to_train_local):
                 poses[pose] = pose_model(ind)
 
-        save_nerf_params(i + hyp.start_g, hyp, poses, checkpoint_nerf_, keyframe_indexes)
+        initial_psnr_model.append(model_nerf.initial_psnr)
+        save_nerf_params(i + hyp.start_g, hyp, poses, checkpoint_nerf_, keyframe_indexes, initial_psnr_model, initial_psnr_pose)
 
-def save_nerf_params(index, hyp, poses, checkpoint_nerf_, poses_trained):
+def save_nerf_params(index, hyp, poses, checkpoint_nerf_, poses_trained, initial_psnr_model, initial_psnr_pose):
     
     params = {
             "index" : index, 
             "nerf_weights" : checkpoint_nerf_,
             "poses" : poses,
-            "poses_trained" : poses_trained
+            "poses_trained" : poses_trained,
+            "initial_psnr_model" : initial_psnr_model,
+            "initial_psnr_pose" : initial_psnr_pose
         }
 
     if not os.path.isdir("inc_nerf_dumps/{}".format(hyp.exp_name)):

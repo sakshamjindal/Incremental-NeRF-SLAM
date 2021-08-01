@@ -3,11 +3,15 @@ Experiment Configs
 '''
 DEBUG = True
 model_type = "orig"
-#exp_name = "Nerf_1_phase1" 
-exp_name = "Nerf_1_phase2_orig"
-# Abhishek - just change the above experiment name if you are doing different experiments
-# Take a LOW Code approach - for easier merging later on - don't create new folders in the main folder for different type of experiment
-# Store ALL your experiment logs/ckpts in common folders - inc_logs/inc_ckpts
+
+# exp_name = "Nerf_1_phase1_orig"
+# relative_pose_optimisation = False
+
+# exp_name = "Nerf_1_phase2_orig"
+# relative_pose_optimisation = True
+
+exp_name = "Nerf_1_phase1_lamda=0"
+relative_pose_optimisation = False
 
 saved_params = None
 #saved_params = "inc_nerf_dumps/Exp1/dumps_4"
