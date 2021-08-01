@@ -10,12 +10,12 @@ from gradslam.datasets import TUM
 from gradslam.slam import PointFusion
 from torch.utils.data import DataLoader
 
-path = "/scratch/saksham/data/tum"
+path = "/scratch/saksham/datasets/tum"
 sequences = "sequences.txt"
 
 # load dataset
 dataset = TUM(path, sequences = sequences , seqlen = 4, height = 60, width = 80)
-loader = DataLoader(dataset=dataset, batch_size=32)
+loader = DataLoader(dataset=dataset, batch_size=1)
 colors, depths, intrinsics, poses, *_ = next(iter(loader))
 
 # create rgbdimages object
