@@ -15,7 +15,7 @@ sequences = "sequences.txt"
 
 # load dataset
 dataset = TUM(path, sequences = sequences , seqlen = 4, height = 60, width = 80)
-loader = DataLoader(dataset=dataset, batch_size=1)
+loader = DataLoader(dataset=dataset, batch_size=32)
 colors, depths, intrinsics, poses, *_ = next(iter(loader))
 
 # create rgbdimages object
