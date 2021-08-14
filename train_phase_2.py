@@ -568,7 +568,7 @@ def main(hparams):
         model_nerf = NeRFSystem(
                         poses_to_train = poses_to_train_global, poses_to_val = poses_to_val, 
                         inital_poses = poses, keyframe_indexes = keyframe_indexes,
-                        freeze_nerf = False, pose_optimization = True, relative_pose_optimization = hyp.relative_pose_optimisation,
+                        freeze_nerf = False, pose_optimization = False, relative_pose_optimization = hyp.relative_pose_optimisation,
                         hparams=hparams
                     )
         load_ckpt(model_nerf, checkpoint_nerf_, 'nerf_coarse')

@@ -10,11 +10,14 @@ model_type = "orig"
 # exp_name = "Nerf_1_phase2_orig"
 # relative_pose_optimisation = True
 
-exp_name = "Nerf_1_phase1_lamda=0"
-relative_pose_optimisation = False
+exp_name = "Nerf_1_phase2-3_orig"
+relative_pose_optimisation = True
 
-saved_params = None
-#saved_params = "inc_nerf_dumps/Exp1/dumps_4"
+# exp_name = "Nerf_1_phase2_orig"
+# relative_pose_optimisation = True
+
+#saved_params = None
+saved_params = "inc_nerf_dumps/Nerf_1_phase2_orig/saved_15"
 
 '''
 Every new nerf that you are training will be denoted by nomenclature `g`
