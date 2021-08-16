@@ -29,20 +29,20 @@ class MaskedMSELoss(nn.Module):
         super(MaskedMSELoss, self).__init__()
         self.loss = nn.MSELoss(reduction=reduction)
 
-    def forward(self, inputs, targets, masks):
+#     def forward(self, inputs, targets, masks):
 
-        if masks is None:
-            out = self.loss(inputs, targets)
-        else:
-            out = torch.sum(((inputs-targets)*masks)**2.0) / torch.sum(masks)
+#         if masks is None:
+#             out = self.loss(inputs, targets)
+#         else:
+#             out = torch.sum(((inputs-targets)*masks)**2.0) / torch.sum(masks)
             
-        return out
+#         return out
 
 
 class CustomLoss(nn.Module):
     def __init__(
         self, 
-        loss_type="L2"
+        loss_type="L1"
     ):
         super().__init__()
         self.loss_type = loss_type
@@ -65,10 +65,11 @@ class CustomLoss(nn.Module):
         if self.loss_type == "L1":
             e = (torch.abs(inputs - targets)*masks)
             e = e/torch.sqrt(depth_variance)
-            e = torch.sum(e)/masks.sum()
+            e = torch.sum(e)/torch.sum(masks)
         elif self.loss_type == "L2":
-            e = torch.sum((((inputs-targets)*masks)**2.0)/depth_variance) / torch.sum(masks)
-
+            e = (((inputs-targets)*masks)**2.0)
+            e = e/depth_variance
+            e = torch.sum(e)/torch.sum(masks)
 
         return e           
 
@@ -84,13 +85,13 @@ class DepthLoss(nn.Module):
 
         self.loss = MaskedMSELoss()
 
-    def forward(self, inputs, targets, masks):
+#     def forward(self, inputs, targets, masks):
         
-        loss = self.loss(inputs['depth_coarse'], targets, masks)
-        if 'depth_fine' in inputs:
-            loss += self.loss(inputs['depth_fine'], targets, masks)
+#         loss = self.loss(inputs['depth_coarse'], targets, masks)
+#         if 'depth_fine' in inputs:
+#             loss += self.loss(inputs['depth_fine'], targets, masks)
 
-        return self.coef*(loss)
+#         return self.coef*(loss)
 
 class CustomDepthLoss(nn.Module):
 
@@ -102,7 +103,7 @@ class CustomDepthLoss(nn.Module):
         super().__init__()
         self.coef = coef
 
-        self.loss = CustomLoss("L2")
+        self.loss = CustomLoss("L1")
 
     def forward(self, inputs, targets, masks):
         

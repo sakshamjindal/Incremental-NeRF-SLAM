@@ -517,36 +517,10 @@ CUDA_VISIBLE_DEVICES=0 python train.py \
 Exp 23: 
 Use L1 depth loss as in iMAP paper
 
-# 23.1 - Small Image with L1 loss normalised by depth variance
-CUDA_VISIBLE_DEVICES=1 python train.py \
+# 23.0 - Large Image - Just L1 loss
+CUDA_VISIBLE_DEVICES=0 python train.py \
    --dataset_name tum \
-   --root_dir "/scratch/saksham/data/tum/" \
-   --N_importance 64 --img_wh 80 60 \
-   --num_epochs 60 --batch_size 4096 \
-   --optimizer adam --lr 5e-4 \
-    --start 0 --end 30 \
-   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
-   --exp_name "tum_desk_exp23" \
-   --depth_norm \
-   --gpus 0 --lamda 1
-
-# 23.1 - Small Image with L2 loss normalised by depth variance
-CUDA_VISIBLE_DEVICES=1 python train.py \
-   --dataset_name tum \
-   --root_dir "/scratch/saksham/data/tum/" \
-   --N_importance 64 --img_wh 80 60 \
-   --num_epochs 60 --batch_size 4096 \
-   --optimizer adam --lr 5e-4 \
-    --start 0 --end 30 \
-   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
-   --exp_name "tum_desk_exp23" \
-   --depth_norm \
-   --gpus 0 --lamda 1
-
-# 23.2 - large image
-CUDA_VISIBLE_DEVICES=1 python train.py \
-   --dataset_name tum \
-   --root_dir "/scratch/saksham/data/tum/" \
+   --root_dir "/scratch/saksham/datasets/tum/" \
    --N_importance 64 --img_wh 640 480 \
    --num_epochs 60 --batch_size 4096 \
    --optimizer adam --lr 5e-4 \
@@ -554,4 +528,30 @@ CUDA_VISIBLE_DEVICES=1 python train.py \
    --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
    --exp_name "tum_desk_exp23" \
    --depth_norm \
-   --gpus 0 --lamda 1 
+   --gpus 0 --lamda 1
+
+# 23.1 - Large Image - L2 loss divided by depth variance
+CUDA_VISIBLE_DEVICES=1 python train.py \
+   --dataset_name tum \
+   --root_dir "/scratch/saksham/datasets/tum/" \
+   --N_importance 64 --img_wh 640 480 \
+   --num_epochs 60 --batch_size 4096 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 30 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "tum_desk_exp23" \
+   --depth_norm \
+   --gpus 0 --lamda 1
+
+# 23.1 - Large Image - L1 loss divided by depth variance
+CUDA_VISIBLE_DEVICES=1 python train.py \
+   --dataset_name tum \
+   --root_dir "/scratch/saksham/datasets/tum/" \
+   --N_importance 64 --img_wh 640 480 \
+   --num_epochs 60 --batch_size 4096 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 30 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "tum_desk_exp23" \
+   --depth_norm \
+   --gpus 0 --lamda 1
