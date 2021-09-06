@@ -1,0 +1,51 @@
+# Experiment 1. F_to_G
+CUDA_VISIBLE_DEVICES=1 python train_rel.py \
+   --dataset_name tum_rel \
+   --val_frequency 20 \
+   --mode "f_to_g" \
+   --poses_to_train_f 25 26 27 28 29 \
+   --poses_to_val_f 29 \
+   --optimised_poses_f 25 26 27 28 29 \
+   --N_importance 64 --img_wh 640 480 \
+   --num_epochs 1000 --batch_size 4096  \
+   --optimizer adam --lr 5e-4 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "rel_test"  \
+   --gpus 0 --lamda 1  \
+   --nerf_f_pose_path "inv_ckpts/inv_Exp5/epoch=625.ckpt"
+
+# Experiment 2. Freeze Nerf and optimise for poses 
+CUDA_VISIBLE_DEVICES=0 python train_rel.py \
+   --dataset_name tum_rel \
+   --val_frequency 20 \
+   --mode "g_to_f" \
+   --poses_to_train_g 25 26 27 \
+   --poses_to_val_g 29 \
+   --optimised_poses_g 25 26 27 28 29 \
+   --N_importance 64 --img_wh 640 480 \
+   --num_epochs 1000 --batch_size 4096  \
+   --optimizer adam --lr 5e-4 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "rel_Exp2_G"  \
+   --gpus 0 --lamda 1  \
+   --nerf_g_pose_path "inv_ckpts/inv_Exp6/epoch=802.ckpt"
+
+# Experiment 3. 
+CUDA_VISIBLE_DEVICES=0 python train_rel.py \
+   --dataset_name tum_rel \
+   --val_frequency 20 \
+   --mode "both" \
+   --poses_to_train_f 25 26 27 \
+   --poses_to_val_f 29 \
+   --optimised_poses_f 25 26 27 28 29 \
+   --poses_to_train_g 25 26 27 28 29 \
+   --poses_to_val_g 29 \
+   --optimised_poses_g 25 26 27 28 29 \
+   --N_importance 64 --img_wh 640 480 \
+   --num_epochs 1000 --batch_size 4096  \
+   --optimizer adam --lr 5e-4 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "rel_Exp3_FG"  \
+   --gpus 0 --lamda 1  \
+   --nerf_f_pose_path "inv_ckpts/inv_Exp5/epoch=625.ckpt" \
+   --nerf_g_pose_path "inv_ckpts/inv_Exp6/epoch=802.ckpt"

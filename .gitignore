@@ -1,9 +1,23 @@
 .vscode/
+pytorch3d/
 logs/
+nerf_ckpts/
+inv_ckpts/
+inv_logs/
 ckpts/
-results/
-*.ply
+rel_logs/
+rel_ckpts/
+inc_logs/
+inc_ckpts/
+inc_nerf_dumps/
+results/*/*
+*.plys
 *.vol
+*.mp4
+
+*.ipynb_checkpoints
+*/*.ipynb_checkpoints
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -83,6 +97,7 @@ target/
 
 # Jupyter Notebook
 .ipynb_checkpoints
+.ipynb
 
 # IPython
 profile_default/

@@ -152,12 +152,15 @@ def render_rays(models,
 
         rgb_map = reduce(rearrange(weights, 'n1 n2 -> n1 n2 1')*rgbs, 'n1 n2 c -> n1 c', 'sum')
         depth_map = reduce(weights*z_vals, 'n1 n2 -> n1', 'sum')
+        depth_deviation = (z_vals - depth_map.unsqueeze(1).repeat(1,N_samples_))
+        depth_variance = reduce(weights*depth_deviation**2, 'n1 n2 -> n1', 'sum')
 
         if white_back:
             rgb_map += 1-weights_sum.unsqueeze(1)
-
+        
         results[f'rgb_{typ}'] = rgb_map
         results[f'depth_{typ}'] = depth_map
+        results[f'depth_variance_{typ}'] = depth_variance
 
         return
 

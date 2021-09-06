@@ -3,6 +3,7 @@ from torch.utils.data import Dataset
 import glob
 import numpy as np
 import os
+import cv2
 from PIL import Image
 from torchvision import transforms as T
 from typing import Optional
@@ -158,7 +159,6 @@ def create_spheric_poses(radius, n_poses=120):
         spheric_poses += [spheric_pose(th, -np.pi/5, radius)] # 36 degree view downwards
     return np.stack(spheric_poses, 0)
 
-
 class LLFFDataset(Dataset):
     def __init__(self, 
         root_dir,
@@ -213,7 +213,16 @@ class LLFFDataset(Dataset):
             t = im.tvec.reshape(3, 1)
             w2c_mats += [np.concatenate([np.concatenate([R, t], 1), bottom], 0)]
         w2c_mats = np.stack(w2c_mats, 0)
-        poses = np.linalg.inv(w2c_mats)[:, :3] # (N_images, 3, 4) cam2world matrices
+        poses = np.linalg.inv(w2c_mats) # (N_images, 4, 4) cam2world matrices
+
+        # transformation of poses from arbritary initial pose to identity matrix
+        from gradslam.geometry.geometryutils import relative_transformation
+        poses = torch.from_numpy(poses).float()
+        poses = relative_transformation(
+            poses[0].unsqueeze(0).repeat(poses.shape[0], 1, 1), poses, orthogonal_rotations = True
+        )
+        poses = poses.numpy().astype('float64')
+        poses = poses[:, :3] # (N_images, 4, 4) cam2world matrices
         
         # read bounds
         self.bounds = np.zeros((len(poses), 2)) # (N_images, 2)
@@ -234,18 +243,16 @@ class LLFFDataset(Dataset):
         # permute the matrices to increasing order
         poses = poses[perm]
         self.bounds = self.bounds[perm]
-        
-        # COLMAP poses has rotation in form "right down front", change to "right up back"
-        # See https://github.com/bmild/nerf/issues/34
-        poses = np.concatenate([poses[..., 0:1], -poses[..., 1:3], poses[..., 3:4]], -1)
-        
+
         # Filter images
         if self.start is not None and self.end is not None:
             poses = poses[self.start:self.end:self.period]
             self.image_paths = self.image_paths[self.start :self.end:self.period]
             self.bounds = self.bounds[self.start:self.end:self.period]
         
-        #Center the pose
+        # COLMAP poses has rotation in form "right down front", change to "right up back"
+        # See https://github.com/bmild/nerf/issues/34
+        poses = np.concatenate([poses[..., 0:1], -poses[..., 1:3], poses[..., 3:4]], -1)
         self.poses, _ = center_poses(poses)
         distances_from_center = np.linalg.norm(self.poses[..., 3], axis=1)
         val_idx = np.argmin(distances_from_center) # choose val image as the closest to
@@ -273,9 +280,6 @@ class LLFFDataset(Dataset):
                 c2w = torch.FloatTensor(self.poses[i])
 
                 img = Image.open(image_path).convert('RGB')
-                # assert img.size[1]*self.img_wh[0] == img.size[0]*self.img_wh[1], \
-                #     f'''{image_path} has different aspect ratio than img_wh, 
-                #         please check your data!'''
                 img = img.resize(self.img_wh, Image.LANCZOS)
                 img = self.transform(img) # (3, h, w)
                 img = img.view(3, -1).permute(1, 0) # (h*w, 3) RGB
@@ -286,9 +290,9 @@ class LLFFDataset(Dataset):
                     near, far = 0, 1
                     rays_o, rays_d = get_ndc_rays(self.img_wh[1], self.img_wh[0],
                                                   self.focal, 1.0, rays_o, rays_d)
-                                     # near plane is always at 1.0
-                                     # near and far in NDC are always 0 and 1
-                                     # See https://github.com/bmild/nerf/issues/34
+                                    #  near plane is always at 1.0
+                                    #  near and far in NDC are always 0 and 1
+                                    #  See https://github.com/bmild/nerf/issues/34
                 else:
                     near = self.bounds.min()
                     far = min(8 * near, self.bounds.max()) # focus on central object only

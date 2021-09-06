@@ -11,7 +11,7 @@ from plyfile import PlyData, PlyElement
 from argparse import ArgumentParser
 
 from models.rendering import *
-from models.nerf import *
+from models.nerf_origin import *
 
 from utils import load_ckpt
 
@@ -25,7 +25,7 @@ def get_opts():
                         default='/home/ubuntu/data/nerf_example_data/nerf_synthetic/lego',
                         help='root directory of dataset')
     parser.add_argument('--dataset_name', type=str, default='blender',
-                        choices=['blender', 'llff'],
+                        # choices=['blender', 'llff'],
                         help='which dataset to validate')
     parser.add_argument('--scene_name', type=str, default='test',
                         help='scene name, used as output ply filename')
@@ -95,12 +95,13 @@ if __name__ == "__main__":
     args = get_opts()
 
     kwargs = {'root_dir': args.root_dir,
-              'img_wh': tuple(args.img_wh)}
-    if args.dataset_name == 'llff':
-        kwargs['spheric_poses'] = True
-        kwargs['split'] = 'test'
-    else:
-        kwargs['split'] = 'train'
+              'img_wh': tuple(args.img_wh),
+              'start':0, 'end' : 30}
+    # if 'llff' in dataset_name :
+    #     kwargs['spheric_poses'] = True
+    #     kwargs['split'] = 'test'
+    # else:
+    kwargs['split'] = 'train'
     dataset = dataset_dict[args.dataset_name](**kwargs)
 
     embedding_xyz = Embedding(3, 10)

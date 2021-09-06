@@ -1,0 +1,595 @@
+Experiment Commands
+
+Exp 1 : 
+python train_nerf.py \
+   --dataset_name llff \
+   --root_dir "/scratch/saksham/data/freiburg_small/" \
+   --N_importance 64 --img_wh 504 378 \
+   --num_epochs 30 --batch_size 1024 \
+   --optimizer adam --lr 5e-4 \
+   --lr_scheduler steplr --decay_step 10 20 --decay_gamma 0.5 \
+   --exp_name "freiburg_small_1" \
+   --num_gpus 2
+
+python eval.py \
+   --root_dir "/scratch/saksham/data/freiburg_small/" \
+   --dataset_name llff --scene_name freiburg_small_1 \
+   --start 0 --end 30 \
+   --img_wh 504 378 --N_importance 64 --ckpt_path "ckpts/freiburg_small_1/epoch=18.ckpt"
+
+
+Exp 2:
+python train_nerf.py \
+   --dataset_name llff_tum \
+   --root_dir "/scratch/saksham/data/freiburg_small/" \
+   --N_importance 64 --img_wh 504 378 \
+   --num_epochs 30 --batch_size 1024 \
+   --optimizer adam --lr 5e-4 \
+   --lr_scheduler steplr --decay_step 10 20 --decay_gamma 0.5 \
+   --exp_name "test" \
+   --num_gpus 1
+
+Exp 2:
+# Small depth
+python train_nerf.py \
+   --dataset_name llff_tum \
+   --root_dir "/scratch/saksham/data/freiburg_small/" \
+   --N_importance 64 --img_wh 160 120 \
+   --num_epochs 30 --batch_size 1024 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 34 \
+   --lr_scheduler steplr --decay_step 10 20 --decay_gamma 0.5 \
+   --exp_name "freiburg_small_Exp2" \
+   --num_gpus 1
+
+Exp 3:
+# Small Image
+python train_nerf.py \
+   --dataset_name llff \
+   --root_dir "/scratch/saksham/data/freiburg_small/" \
+   --N_importance 64 --img_wh 160 120 \
+   --num_epochs 30 --batch_size 1024 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 30 \
+   --lr_scheduler steplr --decay_step 10 20 --decay_gamma 0.5 \
+   --exp_name "freiburg_small_Exp3" \
+   --num_gpus 1
+
+Exp 4.1
+python train_nerf.py \
+   --dataset_name llff_tum \
+   --root_dir "/scratch/saksham/data/freiburg_small/" \
+   --N_importance 64 --img_wh 80 60 \
+   --num_epochs 60 --batch_size 1024 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 35 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "tum_desk_exp4_lamda_0" \
+   --gpus 1 --lamda 0
+
+Exp 4.2
+python train_nerf.py \
+   --dataset_name llff_tum \
+   --root_dir "/scratch/saksham/data/freiburg_small/" \
+   --N_importance 64 --img_wh 80 60 \
+   --num_epochs 60 --batch_size 1024 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 35 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "tum_desk_exp4_lamda_0.1" \
+   --gpus 1 --lamda 0.1
+
+Exp 4.3
+python train_nerf.py \
+   --dataset_name llff_tum \
+   --root_dir "/scratch/saksham/data/freiburg_small/" \
+   --N_importance 64 --img_wh 80 60 \
+   --num_epochs 60 --batch_size 1024 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 35 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "tum_desk_exp4.3_lamda_1" \
+   --gpus 0 --lamda 1
+
+Exp 4.4
+python train_nerf.py \
+   --dataset_name llff_tum \
+   --root_dir "/scratch/saksham/data/freiburg_small/" \
+   --N_importance 64 --img_wh 80 60 \
+   --num_epochs 60 --batch_size 1024 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 35 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "tum_desk_exp4.4_lamda_10" \
+   --gpus 0 --lamda 10
+
+
+Exp 5
+python train_nerf.py \
+   --dataset_name llff \
+   --root_dir "/scratch/saksham/data/freiburg_small/" \
+   --N_importance 64 --img_wh 80 60 \
+   --num_epochs 60 --batch_size 1024 \
+   --optimizer adam --lr 5e-4 \
+    --start 3 --end 100 --period 3 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "tum_desk_exp5_long_rgb" \
+   --gpus 1 --lamda 0
+
+python eval.py \
+   --root_dir "/scratch/saksham/data/freiburg_small/" \
+   --dataset_name llff --scene_name tum_desk_exp5 \
+    --start 3 --end 100 --period 3 \
+   --img_wh 80 60 --N_importance 64 --ckpt_path "ckpts/tum_desk_exp5_long_rgb/epoch=18.ckpt"
+
+
+Exp 6:
+python train_nerf.py \
+   --dataset_name tum \
+   --root_dir "/scratch/saksham/data/tum/" \
+   --N_importance 64 --img_wh 80 60 \
+   --num_epochs 60 --batch_size 1024 \
+   --optimizer adam --lr 5e-4 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "tum_desk_exp6" \
+   --gpus 1 --lamda 0
+
+Exp 7:
+python train_nerf.py \
+   --dataset_name llff \
+   --root_dir "/scratch/saksham/data/freiburg_small/" \
+   --N_importance 64 --img_wh 80 60 \
+   --num_epochs 60 --batch_size 1024 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 30 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "tum_desk_exp7.1" \
+   --gpus 1 --lamda 0
+
+
+Exp 8:
+python train_nerf.py \
+   --dataset_name llff \
+   --root_dir "/scratch/saksham/data/freiburg_small/" \
+   --N_importance 64 --img_wh 80 60 \
+   --num_epochs 60 --batch_size 1024 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 30 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "tum_desk_exp8" \
+   --gpus 1 --lamda 0
+
+Exp 10:
+python train_nerf.py \
+   --dataset_name tum \
+   --root_dir "/scratch/saksham/data/tum/" \
+   --N_importance 64 --img_wh 80 60 \
+   --num_epochs 60 --batch_size 1024 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 30 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "tum_desk_exp10" \
+   --gpus 1 --lamda 0
+
+#tum dataloader with colmap poses;
+Didn't work
+python train_nerf.py \
+   --dataset_name tum \
+   --root_dir "/scratch/saksham/data/tum/" \
+   --N_importance 64 --img_wh 80 60 \
+   --num_epochs 60 --batch_size 1024 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 30 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "test" \
+   --gpus 1 --lamda 0
+
+#llff dataloader with tum aligned poses
+#Works
+python train_nerf.py \
+   --dataset_name llff \
+   --root_dir "/scratch/saksham/data/freiburg_small/" \
+   --N_importance 64 --img_wh 80 60 \
+   --num_epochs 60 --batch_size 1024 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 30 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "test2" \
+   --gpus 1 --lamda 0
+
+
+#llff dataloader with tum aligned poses and tum images
+# test3
+python train_nerf.py \
+   --dataset_name llff_2 \
+   --root_dir "/scratch/saksham/data/freiburg_small/" \
+   --N_importance 64 --img_wh 80 60 \
+   --num_epochs 60 --batch_size 1024 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 30 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "test3" \
+   --gpus 1 --lamda 0
+
+#tum dataloader with corrected image sizes but poses aligned
+# test 4
+python train_nerf.py \
+   --dataset_name tum \
+   --root_dir "/scratch/saksham/data/tum/" \
+   --N_importance 64 --img_wh 80 60 \
+   --num_epochs 60 --batch_size 1024 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 30 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "test4" \
+   --gpus 1 --lamda 0
+
+#tum dataloader with corrected image sizes but poses not aligned
+#test 5
+python train_nerf.py \
+   --dataset_name tum \
+   --root_dir "/scratch/saksham/data/tum/" \
+   --N_importance 64 --img_wh 80 60 \
+   --num_epochs 60 --batch_size 1024 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 30 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "test5" \
+   --gpus 1 --lamda 0
+
+
+#just trying to test effect of scale factor
+Exp 12.0 : original scale
+Exp 12.1 : scale_factor = 1
+Exp 12.2 : origianl scale with colmap pose transformations
+python train_nerf.py \
+   --dataset_name llff \
+   --root_dir "/scratch/saksham/data/freiburg_small/" \
+   --N_importance 64 --img_wh 80 60 \
+   --num_epochs 60 --batch_size 1024 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 30 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "tum_desk_exp12" \
+   --gpus 1 --lamda 0
+
+
+# Exp 13.0 --- scale_factor = 1, near = bounds.min(), far = bounds.max(),without --use_disp
+# Exp 13.1 -- scale_factor = 1, near = bounds.min()], far = bounds.max(),  --use_disp
+# and removing NDC
+python train_nerf.py \
+   --dataset_name llff_non_ndc \
+   --use_disp \
+   --root_dir "/scratch/saksham/data/freiburg_small/" \
+   --N_importance 64 --img_wh 80 60 \
+   --num_epochs 60 --batch_size 1024 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 30 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "tum_desk_exp13" \
+   --gpus 1 --lamda 0
+
+# Exp 14.0 --- scale_factor = 1, near = 0.5 , far = 10 ,  --use_disp
+Non-NDC
+python train_nerf.py \
+   --dataset_name tum \
+   --use_disp \
+   --root_dir "/scratch/saksham/data/tum/" \
+   --N_importance 64 --img_wh 80 60 \
+   --num_epochs 60 --batch_size 1024 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 30 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "tum_desk_exp14" \
+   --gpus 1 --lamda 0
+
+Exp 15
+Non-NDC
+python train_nerf.py \
+   --dataset_name tum \
+   --use_disp \
+   --root_dir "/scratch/saksham/data/tum/" \
+   --N_importance 64 --img_wh 80 60 \
+   --num_epochs 60 --batch_size 1024 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 30 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "tum_desk_exp15" \
+   --gpus 1 --lamda 1.0
+
+Exp 16
+Non-NDC
+near = 0 and far = 1
+scale_factor = 4.799326327027303
+visualised with min=0 and max = 1
+python train_nerf.py \
+--dataset_name tum \
+--root_dir "/scratch/saksham/data/tum/" \
+--use_disp \
+--N_importance 64 --img_wh 80 60 \
+--num_epochs 60 --batch_size 1024 \
+--optimizer adam --lr 5e-4 \
+--start 0 --end 30 \
+--lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+--exp_name "tum_desk_exp16" \
+--gpus 1 --lamda 0
+
+
+Exp 17.0
+# testing on colmap poses
+scale_factor = near_original*100
+near = self.bounds.min()
+far = self.bounds.max()
+python train_nerf.py \
+   --dataset_name llff_non_ndc \
+   --use_disp \
+   --root_dir "/scratch/saksham/data/freiburg_small/" \
+   --N_importance 64 --img_wh 80 60 \
+   --num_epochs 60 --batch_size 1024 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 30 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "tum_desk_exp17" \
+   --gpus 1 --lamda 0
+
+Exp 17.1
+#testing on colmap poses
+scale_factor = bounds.max()/0.75
+near = 0, far = 1
+python train_nerf.py \
+   --dataset_name llff_non_ndc \
+   --root_dir "/scratch/saksham/data/freiburg_small/" \
+   --N_importance 64 --img_wh 80 60 \
+   --num_epochs 60 --batch_size 1024 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 30 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "tum_desk_exp17" \
+   --gpus 1 --lamda 0
+
+Exp 17.2 : large image sizes
+scale_factor = bounds.max()/0.75
+near = 0, far = 1
+python train_nerf.py \
+   --dataset_name llff_non_ndc \
+   --root_dir "/scratch/saksham/data/freiburg_small/" \
+   --N_importance 64 --img_wh 640 480 \
+   --num_epochs 60 --batch_size 1024 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 30 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "tum_desk_exp17" \
+   --gpus 0 --lamda 0
+
+Exp 18 : large image sizes
+TUM poses 
+scale_factor = 3.59949474527 (How? -- Notion)
+near = 0, far = 1
+python train_nerf.py \
+   --dataset_name tum \
+   --root_dir "/scratch/saksham/data/tum/" \
+   --N_importance 64 --img_wh 640 480 \
+   --num_epochs 60 --batch_size 4096 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 30 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "tum_desk_exp18" \
+   --gpus 0 --lamda 0
+
+
+Exp 19 : large image sizes
+TUM poses aligned with COLMAP poses
+scale_factor = 25.83046870477367 
+(using experiment 17, colmap poses) : scale by bounds.max() = 25.. and Not bounds.max()/0.75
+near = 0, far = 1
+CUDA_VISIBLE_DEVICES=1 python train_nerf.py \
+   --dataset_name tum \
+   --root_dir "/scratch/saksham/data/tum/" \
+   --N_importance 64 --img_wh 640 480 \
+   --num_epochs 60 --batch_size 2048 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 30 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "tum_desk_exp19" \
+   --gpus 0 --lamda 0
+
+
+# Exp 20
+Depth Map experiments with low resolution images
+and colmap poses : llff_tum :: colmap poses but depths from tum
+Pose Scaling: 
+Scaling the colmap poses by scale_factor = self.bounds.max()/0.75
+Depth Scaling:
+scale_tum_col = 8.669891269074654
+1) Scale depths from tum to colmap : depth = depth*scale_tum_col
+2) Scale scaled depths using colmap scale factor : depth = depth/scale_factor
+
+# 20.0
+# Benchmark experiment with llff_tum without depth loss
+CUDA_VISIBLE_DEVICES=1 python train_nerf.py \
+   --dataset_name llff_TUM \
+   --root_dir "/scratch/saksham/data/freiburg_small/" \
+   --N_importance 64 --img_wh 80 60 \
+   --num_epochs 60 --batch_size 1024 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 30 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "tum_desk_exp20" \
+   --gpus 0 --lamda 0
+
+# 20.1
+# Benchmark experiment with llff_tum with depth loss
+Compare the above depth experiment 
+CUDA_VISIBLE_DEVICES=1 python train_nerf.py \
+   --dataset_name llff_TUM \
+   --root_dir "/scratch/saksham/data/freiburg_small/" \
+   --N_importance 64 --img_wh 80 60 \
+   --num_epochs 60 --batch_size 1024 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 30 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "tum_desk_exp20" \
+   --gpus 0 --lamda 1
+
+# 20.2
+# Benchmark the experiment of llff_non_ndc (low resolution version of Exp 17)
+CUDA_VISIBLE_DEVICES=1 python train_nerf.py \
+   --dataset_name llff_non_ndc \
+   --root_dir "/scratch/saksham/data/freiburg_small/" \
+   --N_importance 64 --img_wh 80 60 \
+   --num_epochs 60 --batch_size 1024 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 30 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "tum_desk_exp20" \
+   --gpus 0 --lamda 0
+
+
+# Exp 21: Repeat Experiment 20 at large image sizes
+# 21.0 -  repeat of  20.0 at high res
+# 21.0 Without Depth Loss
+CUDA_VISIBLE_DEVICES=1 python train_nerf.py \
+   --dataset_name llff_TUM \
+   --root_dir "/scratch/saksham/data/freiburg_small/" \
+   --N_importance 64 --img_wh 640 480 \
+   --num_epochs 60 --batch_size 4096 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 30 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "tum_desk_exp21" \
+   --gpus 0 --lamda 0
+
+# 21.1 -  repreat of 20.1 at high res
+# 21.1 With Depth Loss
+CUDA_VISIBLE_DEVICES=0 python train_nerf.py \
+   --dataset_name llff_TUM \
+   --root_dir "/scratch/saksham/data/freiburg_small/" \
+   --N_importance 64 --img_wh 640 480 \
+   --num_epochs 60 --batch_size 4096 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 30 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "tum_desk_exp21" \
+   --gpus 0 --lamda 1
+
+# 21.2
+# NON-NDC COLMAP added just for comparison
+# ideally 21.0 and 17 should match but they are not.
+# I am getting better results with llff_non_ndc than llff_TUM
+CUDA_VISIBLE_DEVICES=1 python train_nerf.py \
+   --dataset_name llff_non_ndc \
+   --root_dir "/scratch/saksham/data/freiburg_small/" \
+   --N_importance 64 --img_wh 640 480 \
+   --num_epochs 60 --batch_size 4096 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 30 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "tum_desk_exp21-colmap" \
+   --gpus 0 --lamda 0
+
+
+Exp 22 : large image sizes
+TUM poses with depth loss
+scale_factor = 3.59949474527 (How? -- Notion)
+near = 0, far = 1
+CUDA_VISIBLE_DEVICES=1 python train_nerf.py \
+   --dataset_name tum \
+   --root_dir "/scratch/saksham/data/tum/" \
+   --N_importance 64 --img_wh 80 60 \
+   --num_epochs 60 --batch_size 1024 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 30 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "tum_desk_exp22" \
+   --gpus 0 --lamda 1
+
+CUDA_VISIBLE_DEVICES=0 python train_nerf.py \
+   --dataset_name tum \
+   --root_dir "/scratch/saksham/data/tum/" \
+   --N_importance 64 --img_wh 640 480 \
+   --num_epochs 60 --batch_size 4096 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 30 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "tum_desk_exp22" \
+   --gpus 0 --lamda 1
+
+Exp 23: 
+Use L1 depth loss as in iMAP paper
+
+# 23.1 - Small Image with L1 loss normalised by depth variance
+CUDA_VISIBLE_DEVICES=1 python train_nerf.py \
+   --dataset_name tum \
+   --root_dir "/scratch/saksham/data/tum/" \
+   --N_importance 64 --img_wh 80 60 \
+   --num_epochs 60 --batch_size 4096 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 30 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "tum_desk_exp23" \
+   --depth_norm \
+   --gpus 0 --lamda 1
+
+# 23.1 - Small Image with L2 loss normalised by depth variance
+CUDA_VISIBLE_DEVICES=1 python train_nerf.py \
+   --dataset_name tum \
+   --root_dir "/scratch/saksham/data/tum/" \
+   --N_importance 64 --img_wh 80 60 \
+   --num_epochs 60 --batch_size 4096 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 30 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "tum_desk_exp23" \
+   --depth_norm \
+   --gpus 0 --lamda 1
+
+# 23.2 - large image
+CUDA_VISIBLE_DEVICES=1 python train_nerf.py \
+   --dataset_name tum \
+   --root_dir "/scratch/saksham/data/tum/" \
+   --N_importance 64 --img_wh 640 480 \
+   --num_epochs 60 --batch_size 4096 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 30 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "tum_desk_exp23" \
+   --depth_norm \
+   --gpus 0 --lamda 1 
+
+##################
+CUDA_VISIBLE_DEVICES=1 python train_nerf.py \
+   --dataset_name tum_inv \
+   --root_dir "/scratch/saksham/data/tum/" \
+   --N_importance 64 --img_wh 640 480 \
+   --num_epochs 60 --batch_size 4096 \
+   --optimizer adam --lr 5e-4 \
+    --start 0 --end 30 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "invert_tum_test" \
+   --gpus 0 --lamda 0 \
+   --ckpt_path "ckpts/tum_desk_exp18/epoch=14.ckpt"
+
+
+#Exp 24
+CUDA_VISIBLE_DEVICES=0 python train_nerf.py \
+   --dataset_name tum \
+   --root_dir "/scratch/saksham/data/tum/" \
+   --N_importance 64 --img_wh 640 480 \
+   --num_epochs 60 --batch_size 4096 \
+   --optimizer adam --lr 5e-4 \
+    --start 25 --end 50 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "tum_desk_exp24" \
+   --gpus 0 --lamda 1
+
+#Exp 25
+CUDA_VISIBLE_DEVICES=0 python train_nerf.py \
+   --dataset_name tum \
+   --root_dir "/scratch/saksham/data/tum/" \
+   --N_importance 64 --img_wh 640 480 \
+   --num_epochs 60 --batch_size 4096 \
+   --optimizer adam --lr 5e-4 \
+    --start 25 --period 2 --end 50 \
+   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
+   --exp_name "tum_desk_exp25" \
+   --gpus 0 --lamda 1

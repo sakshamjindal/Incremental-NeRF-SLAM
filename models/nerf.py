@@ -1,5 +1,6 @@
 import torch
 from torch import nn
+import numpy as np
 
 class Embedding(nn.Module):
     def __init__(self, in_channels, N_freqs, logscale=True):
@@ -23,10 +24,8 @@ class Embedding(nn.Module):
         Embeds x to (x, sin(2^k x), cos(2^k x), ...) 
         Different from the paper, "x" is also in the output
         See https://github.com/bmild/nerf/issues/12
-
         Inputs:
             x: (B, self.in_channels)
-
         Outputs:
             out: (B, self.out_channels)
         """
@@ -37,12 +36,50 @@ class Embedding(nn.Module):
 
         return torch.cat(out, -1)
 
+class SineLayer(nn.Module):
+    # See paper sec. 3.2, final paragraph, and supplement Sec. 1.5 for discussion of omega_0.
+    
+    # If is_first=True, omega_0 is a frequency factor which simply multiplies the activations before the 
+    # nonlinearity. Different signals may require different omega_0 in the first layer - this is a 
+    # hyperparameter.
+    
+    # If is_first=False, then the weights will be divided by omega_0 so as to keep the magnitude of 
+    # activations constant, but boost gradients to the weight matrix (see supplement Sec. 1.5)
+    
+    def __init__(self, in_features, out_features, bias=True,
+                 is_first=False, omega_0=30):
+        super(SineLayer, self).__init__()
+        self.omega_0 = omega_0
+        self.is_first = is_first
+        
+        self.in_features = in_features
+        self.linear = nn.Linear(in_features, out_features, bias=bias)
+        
+        self.init_weights()
+    
+    def init_weights(self):
+        with torch.no_grad():
+            if self.is_first:
+                self.linear.weight.uniform_(-1 / self.in_features, 
+                                             1 / self.in_features)      
+            else:
+                self.linear.weight.uniform_(-np.sqrt(6 / self.in_features) / self.omega_0, 
+                                             np.sqrt(6 / self.in_features) / self.omega_0)
+        
+    def forward(self, input):
+        return torch.sin(self.omega_0 * self.linear(input))
+    
+    def forward_with_intermediate(self, input): 
+        # For visualization of activation distributions
+        intermediate = self.omega_0 * self.linear(input)
+        return torch.sin(intermediate), intermediate
+
 
 class NeRF(nn.Module):
     def __init__(self,
-                 D=8, W=256,
+                 D=3, W=256,
                  in_channels_xyz=63, in_channels_dir=27, 
-                 skips=[4]):
+                 skips=[]):
         """
         D: number of layers for density (sigma) encoder
         W: number of hidden units in each layer
@@ -60,37 +97,46 @@ class NeRF(nn.Module):
         # xyz encoding layers
         for i in range(D):
             if i == 0:
-                layer = nn.Linear(in_channels_xyz, W)
+#                 layer = nn.Linear(in_channels_xyz, W)
+                layer = SineLayer(in_channels_xyz, W, is_first=True, omega_0=30)
             elif i in skips:
-                layer = nn.Linear(W+in_channels_xyz, W)
+#                 layer = nn.Linear(W+in_channels_xyz, W)
+                layer = SineLayer(W+in_channels_xyz, W, is_first=False, omega_0=30.0)
             else:
-                layer = nn.Linear(W, W)
-            layer = nn.Sequential(layer, nn.ReLU(True))
+#                 layer = nn.Linear(W, W)
+                layer = SineLayer(W, W, is_first=False, omega_0=30.0)
+#             layer = nn.Sequential(layer, nn.ReLU(True))
             setattr(self, f"xyz_encoding_{i+1}", layer)
-        self.xyz_encoding_final = nn.Linear(W, W)
-
+#         self.xyz_encoding_final = nn.Linear(W, W)
+        self.xyz_encoding_final = SineLayer(W, W, is_first=False, omega_0=30.0)
         # direction encoding layers
-        self.dir_encoding = nn.Sequential(
-                                nn.Linear(W+in_channels_dir, W//2),
-                                nn.ReLU(True))
+#         self.dir_encoding = nn.Sequential(
+#                                 nn.Linear(W+in_channels_dir, W//2),
+#                                 nn.ReLU(True))
+        self.dir_encoding = SineLayer(W+in_channels_dir, W//2, is_first=False, omega_0=30.0)
 
         # output layers
         self.sigma = nn.Linear(W, 1)
+#         with torch.no_grad():
+#             self.sigma.weight.uniform_(-np.sqrt(6 / W) / 30.0, 
+#                                               np.sqrt(6 / W) / 30.0)
         self.rgb = nn.Sequential(
                         nn.Linear(W//2, 3),
                         nn.Sigmoid())
+#         self.rgb = nn.Linear(W//2, 3)
+#         with torch.no_grad():
+#             self.rgb.weight.uniform_(-np.sqrt(6 / (W//2)) / 30.0, 
+#                                               np.sqrt(6 / (W//2)) / 30.0)
 
     def forward(self, x, sigma_only=False):
         """
         Encodes input (xyz+dir) to rgb+sigma (not ready to render yet).
         For rendering this ray, please see rendering.py
-
         Inputs:
             x: (B, self.in_channels_xyz(+self.in_channels_dir))
                the embedded vector of position and direction
             sigma_only: whether to infer sigma only. If True,
                         x is of shape (B, self.in_channels_xyz)
-
         Outputs:
             if sigma_ony:
                 sigma: (B, 1) sigma
