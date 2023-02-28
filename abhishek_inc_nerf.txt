@@ -1,8 +1,0 @@
-CUDA_VISIBLE_DEVICES=1 python train_phase_2.py \
-   --dataset_name tum_inc \
-   --val_frequency 20 \
-   --img_wh 640 480 \
-   --num_epochs 1 --batch_size 4096  \
-   --optimizer adam --lr 5e-4 \
-   --lr_scheduler steplr --decay_step 15 30 --decay_gamma 0.5 \
-   --gpus 0 --lamda 1 
